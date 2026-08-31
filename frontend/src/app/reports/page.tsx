@@ -18,6 +18,7 @@ interface FieldVisit {
 }
 
 interface ReportResponse {
+  ward_name?: string;
   kpis: {
     consumers_visited_count: number;
     total_assigned_consumers: number;

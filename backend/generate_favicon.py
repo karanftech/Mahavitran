@@ -9,7 +9,7 @@ pub_ico = os.path.join(frontend_pub, 'favicon.ico')
 app_ico = os.path.join(frontend_app, 'favicon.ico')
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw  # type: ignore
     img = Image.new('RGBA', (32, 32), (37, 99, 235, 255))
     draw = ImageDraw.Draw(img)
     draw.rectangle([8, 8, 23, 23], fill=(255, 255, 255, 255))
