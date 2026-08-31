@@ -1,0 +1,211 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Users, DollarSign, FileText, CheckCircle2, Target, Navigation, Clock, ChevronRight, Zap } from 'lucide-react';
+import { OfficerDashboardMetrics, NearbyCustomer } from '@/types';
+import { formatCurrency, formatDistance, formatDuration } from '@/utils/formatters';
+import api from '@/services/api';
+import { useGeolocation } from '@/hooks/useGeolocation';
+
+import BulkUploadModal from '@/components/customers/BulkUploadModal';
+
+import { Upload, FileSpreadsheet } from 'lucide-react';
+
+export default function OfficerDashboard() {
+  const { coords } = useGeolocation();
+  const [metrics, setMetrics] = useState<OfficerDashboardMetrics | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+
+  const fetchDashboard = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get<OfficerDashboardMetrics>('/api/dashboard/officer', {
+        params: {
+          latitude: coords?.latitude || 21.1458,
+          longitude: coords?.longitude || 79.0882,
+        },
+      });
+      setMetrics(response.data);
+    } catch (err: any) {
+      console.error('Failed to load officer dashboard metrics', err);
+      setError(err?.response?.data?.detail || 'Failed to connect to backend server. Make sure backend service is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [coords]);
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto animate-pulse">
+        <div className="h-20 bg-slate-200 rounded-lg w-full"></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="h-24 bg-slate-200 rounded-lg"></div>
+          <div className="h-24 bg-slate-200 rounded-lg"></div>
+          <div className="h-24 bg-slate-200 rounded-lg"></div>
+          <div className="h-24 bg-slate-200 rounded-lg"></div>
+        </div>
+        <div className="h-48 bg-slate-200 rounded-lg w-full"></div>
+      </div>
+    );
+  }
+
+
+  if (error || !metrics) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-4 text-center">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg shadow-sm space-y-3">
+          <p className="font-semibold text-base">Unable to load Dashboard Metrics</p>
+          <p className="text-xs text-red-600 max-w-lg mx-auto">{error || 'Could not retrieve metric details.'}</p>
+          <button
+            onClick={fetchDashboard}
+            className="px-4 py-2 bg-red-600 text-white font-medium text-xs rounded-md shadow-sm hover:bg-red-700 transition-colors"
+          >
+            Retry Loading Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const targetProgress = Math.min(100, Math.round((metrics.todays_collected_amount / (metrics.todays_collection_target || 1)) * 100));
+
+  return (
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={() => {
+          fetchDashboard();
+        }}
+      />
+
+      {/* Header Greeting */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
+        <div>
+          <span className="px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200 inline-block mb-1.5">
+            Field Officer Portal
+          </span>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Today's Collection Dashboard</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Locate meters, navigate routes, and collect pending electricity bills.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="py-2 px-3.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Upload className="w-4 h-4 text-blue-600" />
+            <span>Upload Data (CSV)</span>
+          </button>
+
+          <Link
+            href="/map"
+            className="py-2 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm flex items-center justify-center gap-2 transition-colors shrink-0"
+          >
+            <Zap className="w-4 h-4 fill-current" />
+            <span>Open Interactive Map</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Card 1: Total Assigned */}
+        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
+          <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center mb-1">
+            <Users className="w-4 h-4" />
+          </div>
+          <p className="text-[11px] text-slate-500 uppercase font-semibold">Assigned Customers</p>
+          <p className="text-2xl font-bold text-slate-900">{metrics.total_assigned_customers}</p>
+        </div>
+
+        {/* Card 2: Total Pending Amount */}
+        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
+          <div className="w-8 h-8 rounded bg-amber-50 text-amber-600 flex items-center justify-center mb-1">
+            <DollarSign className="w-4 h-4" />
+          </div>
+          <p className="text-[11px] text-slate-500 uppercase font-semibold">Pending Amount</p>
+          <p className="text-2xl font-bold text-amber-600">{formatCurrency(metrics.total_pending_amount)}</p>
+        </div>
+
+        {/* Card 3: Pending Bills Count */}
+        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
+          <div className="w-8 h-8 rounded bg-red-50 text-red-600 flex items-center justify-center mb-1">
+            <FileText className="w-4 h-4" />
+          </div>
+          <p className="text-[11px] text-slate-500 uppercase font-semibold">Pending Customers</p>
+          <p className="text-2xl font-bold text-slate-900">{metrics.number_of_pending_bills}</p>
+        </div>
+
+        {/* Card 4: Completed Collections */}
+        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
+          <div className="w-8 h-8 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <p className="text-[11px] text-slate-500 uppercase font-semibold">Completed Collections</p>
+          <p className="text-2xl font-bold text-emerald-600">{metrics.number_of_completed_collections}</p>
+        </div>
+      </div>
+
+
+      {/* Nearby Pending Customers Section */}
+      <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Navigation className="w-4 h-4 text-blue-600" />
+            <h3 className="font-bold text-slate-900 text-base">Nearby Pending Customers</h3>
+          </div>
+          <Link href="/map" className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+            <span>View All on Map</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {metrics.nearby_pending_customers.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 text-xs">
+            No nearby pending customers found within 5 km radius.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {metrics.nearby_pending_customers.map((cus, idx) => (
+              <div
+                key={cus.customer_id}
+                className="bg-slate-50 p-3.5 rounded-md border border-slate-200 hover:border-slate-300 transition-colors flex justify-between items-center"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm">{cus.name}</h4>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {formatDistance(cus.distance_meters)} • Est. {cus.estimated_duration_mins} min travel
+                  </p>
+                  <p className="text-xs font-bold text-amber-600">{formatCurrency(cus.pending_amount)} pending</p>
+                </div>
+
+                <Link
+                  href={`/map?customer_id=${cus.customer_id}&navigate=true`}
+                  className="py-1.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center gap-1 shadow-sm transition-colors"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Navigate</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
