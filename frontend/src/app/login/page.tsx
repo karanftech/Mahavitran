@@ -11,8 +11,8 @@ import MahavitaranPageLoader from '@/components/ui/MahavitaranPageLoader';
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState<string>('officer1@electricity.gov.in');
-  const [password, setPassword] = useState<string>('officer123');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
