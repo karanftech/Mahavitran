@@ -131,6 +131,7 @@ export interface RouteCalculationResult {
     instruction: string;
     distance_text: string;
     duration_text: string;
+    end_location?: Coordinates;
   }[];
 }
 
