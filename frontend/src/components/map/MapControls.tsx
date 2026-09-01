@@ -7,20 +7,35 @@ import { MapLayerType } from '@/types';
 interface MapControlsProps {
   currentLayer: MapLayerType;
   isFollowing: boolean;
+  is3D?: boolean;
+  officerHeading?: number | null;
   onToggleFollow: () => void;
   onSelectLayer: (layer: MapLayerType) => void;
   onFitBounds: () => void;
+  onResetNorth?: () => void;
+  onToggle3D?: () => void;
   onOpenStreetView?: () => void;
   onZoomIn?: () => void;
   onZoomOut?: () => void;
 }
 
+function getCardinalDirection(angle: number): string {
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const normalized = ((angle % 360) + 360) % 360;
+  const index = Math.round(normalized / 45) % 8;
+  return directions[index];
+}
+
 export default function MapControls({
   currentLayer,
   isFollowing,
+  is3D = false,
+  officerHeading = 0,
   onToggleFollow,
   onSelectLayer,
   onFitBounds,
+  onResetNorth,
+  onToggle3D,
   onOpenStreetView,
   onZoomIn,
   onZoomOut,
@@ -34,13 +49,48 @@ export default function MapControls({
     { type: 'terrain', label: 'Terrain' },
   ];
 
+  const headingAngle = officerHeading !== null && !isNaN(officerHeading!) ? Math.round(officerHeading!) : 0;
+  const cardinalDir = getCardinalDirection(headingAngle);
+
   return (
     <div className="absolute bottom-24 right-4 md:bottom-6 md:right-6 flex flex-col gap-2 z-30 select-none">
+      {/* 3D Perspective Tilt Button (2D Flat <-> 3D Driving Perspective) */}
+      {onToggle3D && (
+        <button
+          onClick={onToggle3D}
+          className={`w-10 h-10 rounded-xl font-black text-xs border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
+            is3D
+              ? 'bg-gradient-to-br from-indigo-600 to-sky-600 text-white border-sky-400 ring-2 ring-sky-400/50 shadow-sky-500/30'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+          }`}
+          title={is3D ? '3D View Active (Click for 2D Top-Down View)' : 'Switch to 3D Perspective View (or 2-finger drag map)'}
+        >
+          <span className="tracking-tighter font-extrabold text-[11px]">3D</span>
+        </button>
+      )}
+
+      {/* 3D Compass Widget (Rotates with officer heading / Click to align True North) */}
+      <button
+        onClick={onResetNorth}
+        className="w-10 h-10 rounded-xl bg-slate-900/90 hover:bg-slate-900 text-white border border-slate-700/80 shadow-xl flex flex-col items-center justify-center transition-all group active:scale-95 cursor-pointer"
+        title={`Compass: ${headingAngle}° ${cardinalDir} — Click to Align True North`}
+      >
+        <div
+          className="transition-transform duration-300 ease-out"
+          style={{ transform: `rotate(${headingAngle}deg)` }}
+        >
+          <Compass className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+        </div>
+        <span className="text-[7.5px] font-black text-sky-400 -mt-0.5 tracking-tighter">
+          {cardinalDir}
+        </span>
+      </button>
+
       {/* Map Layers Switcher Button & Popup */}
       <div className="relative">
         <button
           onClick={() => setIsLayerMenuOpen((prev) => !prev)}
-          className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all ${
+          className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
             isLayerMenuOpen
               ? 'bg-slate-900 text-sky-400 border-slate-700 ring-2 ring-sky-500'
               : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -63,7 +113,7 @@ export default function MapControls({
                     onSelectLayer(opt.type);
                     setIsLayerMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                     currentLayer === opt.type
                       ? 'bg-sky-600 text-white'
                       : 'hover:bg-slate-800 text-slate-300'
@@ -82,7 +132,7 @@ export default function MapControls({
       {onOpenStreetView && (
         <button
           onClick={onOpenStreetView}
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-indigo-600 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95"
+          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-indigo-600 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
           title="View 360° Street View"
         >
           <Eye className="w-5 h-5" />
@@ -92,7 +142,7 @@ export default function MapControls({
       {/* Recenter & Follow-Me Toggle */}
       <button
         onClick={onToggleFollow}
-        className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all ${
+        className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
           isFollowing
             ? 'bg-sky-600 text-white border-sky-500 ring-2 ring-sky-400 animate-pulse'
             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -105,7 +155,7 @@ export default function MapControls({
       {/* Fit All Assigned Meters Bounds */}
       <button
         onClick={onFitBounds}
-        className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95"
+        className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
         title="Fit All Assigned Meters"
       >
         <Maximize2 className="w-5 h-5" />
@@ -116,7 +166,7 @@ export default function MapControls({
         <div className="flex flex-col bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
           <button
             onClick={onZoomIn}
-            className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 border-b border-slate-200 transition-colors"
+            className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 border-b border-slate-200 transition-colors cursor-pointer active:bg-slate-200"
             title="Zoom In"
           >
             <Plus className="w-4 h-4" />
@@ -124,7 +174,7 @@ export default function MapControls({
           {onZoomOut && (
             <button
               onClick={onZoomOut}
-              className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition-colors"
+              className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer active:bg-slate-200"
               title="Zoom Out"
             >
               <Minus className="w-4 h-4" />

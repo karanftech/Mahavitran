@@ -153,6 +153,8 @@ export default function MapView({
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentLayer, setCurrentLayer] = useState<MapLayerType>('roadmap');
   const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(false);
+  const [is3D, setIs3D] = useState<boolean>(false);
+  const [mapHeading, setMapHeading] = useState<number>(officerHeading || 0);
 
   const isFollowing = navState?.isFollowing ?? isFollowingInternal;
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -255,6 +257,11 @@ export default function MapView({
       center: { lat: centerLat, lng: centerLng },
       zoom: 15,
       mapTypeId: google.maps.MapTypeId.ROADMAP,
+      mapId: 'MAHAVITARAN_3D_NAV_MAP',
+      tiltInteractionEnabled: true,
+      headingInteractionEnabled: true,
+      tilt: 0,
+      heading: 0,
       disableDefaultUI: true,
       gestureHandling: 'greedy',
       clickableIcons: false,
@@ -263,16 +270,26 @@ export default function MapView({
     infoWindowRef.current = new google.maps.InfoWindow();
     directionsServiceRef.current = new google.maps.DirectionsService();
 
-    // DirectionsRenderer draws real road polylines correctly
     directionsRendererRef.current = new google.maps.DirectionsRenderer({
       map: googleMapRef.current,
-      suppressMarkers: true,          // We render our own custom markers
+      suppressMarkers: true,
       polylineOptions: {
         strokeColor: '#0284c7',
         strokeWeight: 6,
         strokeOpacity: 0.9,
         zIndex: 990,
       },
+    });
+
+    // Listen to manual 2-finger heading rotation & 3D tilt gestures
+    googleMapRef.current.addListener('heading_changed', () => {
+      const h = googleMapRef.current.getHeading() || 0;
+      setMapHeading(h);
+    });
+
+    googleMapRef.current.addListener('tilt_changed', () => {
+      const t = googleMapRef.current.getTilt() || 0;
+      setIs3D(t > 0);
     });
 
     // Only disable follow on user drag
@@ -511,11 +528,10 @@ export default function MapView({
       officerMarkerRef.current.setIcon(createOfficerMarkerIcon(google, officerHeading));
     }
 
-    // Follow-Me: pan camera. In active navigation → 3D tilt + heading.
+    // Follow-Me: pan camera without forcing constant zoom level reset
     if (isFollowing) {
       googleMapRef.current.panTo(pos);
       if (navState?.active) {
-        googleMapRef.current.setZoom(17);
         googleMapRef.current.setTilt(45);
         if (officerHeading !== null && officerHeading !== undefined && !isNaN(officerHeading)) {
           googleMapRef.current.setHeading(officerHeading);
@@ -680,16 +696,49 @@ export default function MapView({
 
   // ── 11. Zoom controls ────────────────────────────────────────────────────────
   const handleZoomIn = () => {
-    if (mapEngine === 'google' && googleMapRef.current) googleMapRef.current.setZoom(googleMapRef.current.getZoom() + 1);
-    else if (mapEngine === 'leaflet' && leafletMapRef.current) leafletMapRef.current.zoomIn();
+    disableFollowMode();
+    if (mapEngine === 'google' && googleMapRef.current) {
+      const currentZoom = googleMapRef.current.getZoom() || 15;
+      googleMapRef.current.setZoom(Math.min(currentZoom + 1, 21));
+    } else if (mapEngine === 'leaflet' && leafletMapRef.current) {
+      leafletMapRef.current.zoomIn();
+    }
   };
 
   const handleZoomOut = () => {
-    if (mapEngine === 'google' && googleMapRef.current) googleMapRef.current.setZoom(googleMapRef.current.getZoom() - 1);
-    else if (mapEngine === 'leaflet' && leafletMapRef.current) leafletMapRef.current.zoomOut();
+    disableFollowMode();
+    if (mapEngine === 'google' && googleMapRef.current) {
+      const currentZoom = googleMapRef.current.getZoom() || 15;
+      googleMapRef.current.setZoom(Math.max(currentZoom - 1, 3));
+    } else if (mapEngine === 'leaflet' && leafletMapRef.current) {
+      leafletMapRef.current.zoomOut();
+    }
   };
 
-  // ── 12. Re-center / Follow Toggle ───────────────────────────────────────────
+  // ── 12. Compass Reset True North ──────────────────────────────────────────────
+  const handleResetNorth = () => {
+    if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
+      googleMapRef.current.setHeading(0);
+      googleMapRef.current.setTilt(0);
+      if (officerCoords) {
+        googleMapRef.current.panTo({ lat: officerCoords.latitude, lng: officerCoords.longitude });
+      }
+    } else if (officerCoords && leafletMapRef.current) {
+      leafletMapRef.current.setView([officerCoords.latitude, officerCoords.longitude]);
+    }
+  };
+
+  // ── 13. 3D Perspective Tilt Toggle ──────────────────────────────────────────
+  const handleToggle3DTilt = () => {
+    if (mapEngine === 'google' && googleMapRef.current) {
+      const currentTilt = googleMapRef.current.getTilt() || 0;
+      const nextTilt = currentTilt > 0 ? 0 : 45;
+      googleMapRef.current.setTilt(nextTilt);
+      setIs3D(nextTilt > 0);
+    }
+  };
+
+  // ── 14. Re-center / Follow Toggle ───────────────────────────────────────────
   const toggleFollowMode = () => {
     if (onToggleFollow) {
       onToggleFollow();
@@ -735,9 +784,13 @@ export default function MapView({
       <MapControls
         currentLayer={currentLayer}
         isFollowing={isFollowing}
+        is3D={is3D}
+        officerHeading={mapHeading || officerHeading}
         onToggleFollow={toggleFollowMode}
         onSelectLayer={handleSelectLayer}
         onFitBounds={handleFitAllBounds}
+        onResetNorth={handleResetNorth}
+        onToggle3D={handleToggle3DTilt}
         onOpenStreetView={
           selectedCustomer && onOpenStreetView
             ? () => onOpenStreetView(selectedCustomer)
