@@ -25,7 +25,7 @@ interface NavigationPanelProps {
   onRecalculateRoute?: () => void;
 }
 
-// Parses instruction text to determine direction arrow icon
+// Pure helper — determines direction arrow icon from instruction text
 function getDirectionIcon(instruction: string) {
   const lower = instruction.toLowerCase();
   if (lower.includes('right')) return <ArrowRight className="w-7 h-7 text-white" />;
@@ -42,32 +42,34 @@ export default function NavigationPanel({
 }: NavigationPanelProps) {
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-
   const prevInstructionRef = useRef<string>('');
 
-  if (!navState.active || !navState.targetCustomer) return null;
-
   const target = navState.targetCustomer;
-  const currentInstruction =
-    navState.currentStepInstruction || `Drive to consumer meter at ${target.address || target.name}`;
+  const currentInstruction = target
+    ? navState.currentStepInstruction || `Drive to consumer meter at ${target.address || target.name}`
+    : '';
 
-  // Audio Navigation voice announcement trigger
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // ── ALL HOOKS BEFORE ANY CONDITIONAL RETURN ──────────────────────────────
+
+  // Audio: announce turn instructions when they change
   useEffect(() => {
-    if (!navState.active) return;
-    if (currentInstruction && currentInstruction !== prevInstructionRef.current) {
+    if (!navState.active || !currentInstruction) return;
+    if (currentInstruction !== prevInstructionRef.current) {
       prevInstructionRef.current = currentInstruction;
       speakInstruction(currentInstruction, isMuted);
     }
   }, [currentInstruction, navState.active, isMuted]);
 
-  // Audio alert on off-route
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Audio: announce off-route alert
   useEffect(() => {
-    if (navState.isOffRoute) {
-      speakInstruction("You are off route. Recalculating path.", isMuted);
+    if (navState.isOffRoute && navState.active) {
+      speakInstruction('You are off route. Recalculating path.', isMuted);
     }
-  }, [navState.isOffRoute, isMuted]);
+  }, [navState.isOffRoute, navState.active, isMuted]);
+
+  // ── CONDITIONAL RETURNS AFTER ALL HOOKS ──────────────────────────────────
+
+  if (!navState.active || !target) return null;
 
   // Minimized pill view
   if (isMinimized) {
@@ -188,7 +190,7 @@ export default function NavigationPanel({
       </div>
 
       {/* ── BOTTOM TURN-BY-TURN CARD ────────────────────────── */}
-      <div className="absolute bottom-6 left-3 right-3 md:left-auto md:right-4 md:w-96 z-40 animate-slide-up">
+      <div className="absolute bottom-20 md:bottom-6 left-3 right-3 md:left-auto md:right-4 md:w-96 z-40 animate-slide-up">
         <div className="bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden">
           {/* Direction Strip */}
           <div className="flex items-stretch">

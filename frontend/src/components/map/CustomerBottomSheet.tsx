@@ -32,7 +32,8 @@ export default function CustomerBottomSheet({
   const { badgeClass } = getMarkerStatusColor(customer.status, customer.priority, true);
 
   return (
-    <div className="fixed bottom-16 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-40 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 text-slate-900 animate-slide-up">
+    <div className="fixed bottom-20 md:bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-96 z-40 bg-white border border-slate-200 rounded-2xl shadow-2xl text-slate-900 animate-slide-up max-h-[52vh] md:max-h-none overflow-y-auto">
+      <div className="p-4">
       {/* Top Header & Drag Handle */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
@@ -153,6 +154,7 @@ export default function CustomerBottomSheet({
         >
           <span>VIEW DETAILS</span>
         </Link>
+      </div>
       </div>
     </div>
   );

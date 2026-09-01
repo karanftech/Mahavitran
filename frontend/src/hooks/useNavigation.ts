@@ -10,7 +10,7 @@ interface UseNavigationOptions {
 }
 
 export function useNavigation(options: UseNavigationOptions = {}) {
-  const { offRouteThresholdMeters = 75 } = options;
+  const { offRouteThresholdMeters = 80 } = options;
 
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
   const [targetCustomer, setTargetCustomer] = useState<Customer | null>(null);
@@ -64,7 +64,7 @@ export function useNavigation(options: UseNavigationOptions = {}) {
     async (officerCoords: Coordinates) => {
       if (!targetCustomer) return;
       const now = Date.now();
-      if (now - lastRerouteTimeRef.current < 8000) return; // Debounce reroute requests by 8s
+      if (now - lastRerouteTimeRef.current < 5000) return; // Debounce: 5s between reroutes
 
       lastRerouteTimeRef.current = now;
       setIsCalculatingRoute(true);
@@ -87,49 +87,54 @@ export function useNavigation(options: UseNavigationOptions = {}) {
   // Check off-route status as officer moves
   const updateOfficerPosition = useCallback(
     (officerCoords: Coordinates) => {
-      if (!isNavigating || !route || !route.coordinates_path || route.coordinates_path.length === 0) return;
+      if (!isNavigating || !targetCustomer) return;
 
-      // Find min distance from officer position to any point along route path
-      let minDistance = Infinity;
-      let closestStepIdx = currentStepIndex;
+      // Check distance to the destination
+      const distToDest = calculateHaversineDistance(
+        officerCoords.latitude,
+        officerCoords.longitude,
+        targetCustomer.latitude,
+        targetCustomer.longitude
+      );
 
-      route.coordinates_path.forEach((pt) => {
-        const dist = calculateHaversineDistance(
-          officerCoords.latitude,
-          officerCoords.longitude,
-          pt.latitude,
-          pt.longitude
-        );
-        if (dist < minDistance) {
-          minDistance = dist;
-        }
-      });
+      // If route has path coordinates, use those for off-route check
+      let minDistToRoute = distToDest;
+      if (route?.coordinates_path && route.coordinates_path.length > 0) {
+        minDistToRoute = Infinity;
+        route.coordinates_path.forEach((pt) => {
+          const d = calculateHaversineDistance(
+            officerCoords.latitude, officerCoords.longitude,
+            pt.latitude, pt.longitude
+          );
+          if (d < minDistToRoute) minDistToRoute = d;
+        });
+      }
 
-      // Advance step index if close to next step
-      if (route.steps && route.steps.length > currentStepIndex) {
+      // Advance step when close to step end location
+      if (route?.steps && route.steps.length > currentStepIndex) {
         const step = route.steps[currentStepIndex];
         if (step.end_location) {
-          const distToStepEnd = calculateHaversineDistance(
-            officerCoords.latitude,
-            officerCoords.longitude,
-            step.end_location.latitude,
-            step.end_location.longitude
+          const distToStep = calculateHaversineDistance(
+            officerCoords.latitude, officerCoords.longitude,
+            step.end_location.latitude, step.end_location.longitude
           );
-          if (distToStepEnd < 30 && currentStepIndex < route.steps.length - 1) {
+          if (distToStep < 30 && currentStepIndex < route.steps.length - 1) {
             setCurrentStepIndex((prev) => prev + 1);
           }
         }
       }
 
-      // Off-route check
-      if (minDistance > offRouteThresholdMeters) {
-        setIsOffRoute(true);
-        recalculateRoute(officerCoords);
-      } else {
-        setIsOffRoute(false);
+      // Off-route check — only trigger if we have a route path to compare against
+      if (route?.coordinates_path && route.coordinates_path.length > 0) {
+        if (minDistToRoute > offRouteThresholdMeters) {
+          setIsOffRoute(true);
+          recalculateRoute(officerCoords);
+        } else {
+          setIsOffRoute(false);
+        }
       }
     },
-    [isNavigating, route, currentStepIndex, offRouteThresholdMeters, recalculateRoute]
+    [isNavigating, targetCustomer, route, currentStepIndex, offRouteThresholdMeters, recalculateRoute]
   );
 
   const toggleFollow = useCallback(() => {
