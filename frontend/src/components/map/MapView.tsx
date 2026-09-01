@@ -31,6 +31,7 @@ interface MapViewProps {
   onOpenStreetView?: (customer: Customer) => void;
   onCloseStreetView?: () => void;
   onToggleFollow?: () => void;
+  onDirectionsCalculated?: (result: RouteCalculationResult) => void;
 }
 
 // ─── Marker icon helpers ──────────────────────────────────────────────────────
@@ -75,6 +76,37 @@ function buildConsumerMarkerSvg(
   </svg>`;
 }
 
+async function fetchOSRMPath(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<{ coordinates: Coordinates[]; distanceMeters: number; durationSeconds: number } | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const route0 = data.routes[0];
+        const geoCoords = route0.geometry?.coordinates || [];
+        const coordinates: Coordinates[] = geoCoords.map((pt: [number, number]) => ({
+          latitude: pt[1],
+          longitude: pt[0],
+        }));
+        return {
+          coordinates,
+          distanceMeters: route0.distance || 0,
+          durationSeconds: route0.duration || 0,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('OSRM path fetch error:', e);
+  }
+  return null;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function MapView({
@@ -93,6 +125,7 @@ export default function MapView({
   onOpenStreetView,
   onCloseStreetView,
   onToggleFollow,
+  onDirectionsCalculated,
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +136,7 @@ export default function MapView({
   const infoWindowRef = useRef<any>(null);
   const officerMarkerRef = useRef<any>(null);
   const customerMarkersRef = useRef<Map<string, any>>(new Map());
+  const fallbackPolylineRef = useRef<any>(null);
 
   // Leaflet fallback refs
   const leafletMapRef = useRef<any>(null);
@@ -130,6 +164,8 @@ export default function MapView({
   onSelectCustomerRef.current = onSelectCustomer;
   const onToggleFollowRef = useRef(onToggleFollow);
   onToggleFollowRef.current = onToggleFollow;
+  const onDirectionsCalculatedRef = useRef(onDirectionsCalculated);
+  onDirectionsCalculatedRef.current = onDirectionsCalculated;
 
   // FIX: Keep initGoogleMap in a ref so the async script callback always
   // calls the LATEST version, not a stale closure captured at script-append time.
@@ -304,84 +340,144 @@ export default function MapView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
-  // ── 5. Draw Route via DirectionsService (browser-side, real road geometry) ────
-  //
-  // Uses google.maps.DirectionsService directly in the browser with the browser
-  // API key. This correctly handles HTTP referrer restrictions and returns real
-  // road geometry. We draw directions when:
-  //   a) Navigation is active (officer navigating to a meter)
-  //   b) A customer is selected (route preview in the bottom sheet)
+  // ── 5. Draw Route Lines (Multi-Stop Polyline + Single Directions) ───────────────
   useEffect(() => {
-    if (mapEngine !== 'google' || !directionsServiceRef.current || !directionsRendererRef.current) return;
+    if (mapEngine !== 'google' || !googleMapRef.current) return;
     const google = (window as any).google;
     if (!google) return;
 
-    // Destination: active nav target takes priority, then selected customer
-    const dest = navState?.targetCustomer ?? selectedCustomer;
+    // 1. MULTI-STOP ROUTE POLYLINE (Always render if multiRoute exists)
+    const multiPath = multiRoute?.coordinates_path;
+    if (multiPath && multiPath.length >= 2) {
+      const pathLatLngs = multiPath
+        .map((pt: any) => {
+          const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
+          const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
+          if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+            return new google.maps.LatLng(lat, lng);
+          }
+          return null;
+        })
+        .filter(Boolean);
 
-    if (!dest) {
-      // No destination — hide route renderer
-      directionsRendererRef.current.setMap(null);
-      lastDirectionsKeyRef.current = '';
+      if (pathLatLngs.length >= 2) {
+        if (!fallbackPolylineRef.current) {
+          fallbackPolylineRef.current = new google.maps.Polyline({
+            map: googleMapRef.current,
+            path: pathLatLngs,
+            strokeColor: '#0284c7',
+            strokeWeight: 7,
+            strokeOpacity: 0.95,
+            zIndex: 9999,
+          });
+        } else {
+          fallbackPolylineRef.current.setPath(pathLatLngs);
+          fallbackPolylineRef.current.setMap(googleMapRef.current);
+        }
+
+        // Auto-fit camera bounds to display all 16 stops & route line
+        const bounds = new google.maps.LatLngBounds();
+        pathLatLngs.forEach((pt: any) => bounds.extend(pt));
+        if (!bounds.isEmpty()) {
+          googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
+        }
+      }
+    } else {
+      // Single route fallback if route prop exists
+      const singlePath = route?.coordinates_path;
+      if (singlePath && singlePath.length >= 2) {
+        const pathLatLngs = singlePath
+          .map((pt: any) => {
+            const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
+            const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
+            if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+              return new google.maps.LatLng(lat, lng);
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        if (pathLatLngs.length >= 2) {
+          if (!fallbackPolylineRef.current) {
+            fallbackPolylineRef.current = new google.maps.Polyline({
+              map: googleMapRef.current,
+              path: pathLatLngs,
+              strokeColor: '#0284c7',
+              strokeWeight: 7,
+              strokeOpacity: 0.95,
+              zIndex: 9999,
+            });
+          } else {
+            fallbackPolylineRef.current.setPath(pathLatLngs);
+            fallbackPolylineRef.current.setMap(googleMapRef.current);
+          }
+        }
+      } else if (fallbackPolylineRef.current) {
+        fallbackPolylineRef.current.setMap(null);
+      }
+    }
+
+    // 2. SINGLE LEG DIRECTIONS SERVICE (Only for single navigation or single pin preview)
+    const isSingleNav = navState?.active && !multiRoute;
+    const dest = isSingleNav ? navState.targetCustomer : (selectedCustomer && !multiRoute ? selectedCustomer : null);
+
+    if (!directionsServiceRef.current || !directionsRendererRef.current || !dest) {
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null);
+      }
       return;
     }
 
-    // Ensure renderer is attached to the map
-    if (!directionsRendererRef.current.getMap()) {
-      directionsRendererRef.current.setMap(googleMapRef.current);
-    }
-
-    // Officer origin: use real GPS or default to Nagpur center
     const originLat = officerCoords?.latitude ?? 21.1458;
     const originLng = officerCoords?.longitude ?? 79.0882;
 
-    // Multi-stop waypoints (intermediate stops between origin and final destination)
-    const stops = multiRoute?.stops ?? [];
-    const waypointsKey = stops.map(s => `${s.customer_id}`).join('|');
-
-    // Fingerprint rounded to 3dp (~111m) so tiny GPS jitter doesn't hammer the API
-    const fingerprint = [
-      originLat.toFixed(3),
-      originLng.toFixed(3),
-      dest.customer_id,
-      waypointsKey,
-    ].join('|');
-
-    if (fingerprint === lastDirectionsKeyRef.current) return; // Identical request — skip
+    const fingerprint = `${originLat.toFixed(3)}_${originLng.toFixed(3)}_${dest.customer_id}`;
+    if (fingerprint === lastDirectionsKeyRef.current) return;
     lastDirectionsKeyRef.current = fingerprint;
-
-    const waypoints: { location: any; stopover: boolean }[] = stops
-      .filter((s) => s.customer_id !== dest.customer_id)
-      .map((s) => ({
-        location: new google.maps.LatLng(s.latitude, s.longitude),
-        stopover: true,
-      }));
 
     const request = {
       origin: new google.maps.LatLng(originLat, originLng),
       destination: new google.maps.LatLng(dest.latitude, dest.longitude),
-      waypoints,
-      optimizeWaypoints: stops.length > 1, // Let Google optimize multi-stop order
-      // FIX: Do NOT include drivingOptions.trafficModel — it causes REQUEST_DENIED
-      // in regions where Google traffic data is restricted (e.g., India).
-      // Plain DRIVING mode returns real road geometry everywhere.
       travelMode: google.maps.TravelMode.DRIVING,
       unitSystem: google.maps.UnitSystem.METRIC,
     };
 
     directionsServiceRef.current.route(request, (result: any, status: any) => {
-      if (status === google.maps.DirectionsStatus.OK && result) {
+      if (status === google.maps.DirectionsStatus.OK && result && result.routes && result.routes.length > 0) {
         directionsRendererRef.current.setMap(googleMapRef.current);
         directionsRendererRef.current.setDirections(result);
+
+        if (onDirectionsCalculatedRef.current) {
+          const route0 = result.routes[0];
+          const leg0 = route0.legs && route0.legs.length > 0 ? route0.legs[0] : null;
+
+          const steps = leg0 && leg0.steps ? leg0.steps.map((s: any) => ({
+            instruction: s.instructions ? s.instructions.replace(/<[^>]*>/g, '') : '',
+            distance_text: s.distance ? s.distance.text : '',
+            duration_text: s.duration ? s.duration.text : '',
+            start_location: s.start_location ? { latitude: s.start_location.lat(), longitude: s.start_location.lng() } : undefined,
+            end_location: s.end_location ? { latitude: s.end_location.lat(), longitude: s.end_location.lng() } : undefined,
+          })) : [];
+
+          const pathCoords: Coordinates[] = route0.overview_path ? route0.overview_path.map((pt: any) => ({
+            latitude: pt.lat(),
+            longitude: pt.lng(),
+          })) : [];
+
+          onDirectionsCalculatedRef.current({
+            distance_meters: leg0 && leg0.distance ? leg0.distance.value : 0,
+            distance_text: leg0 && leg0.distance ? leg0.distance.text : '0 m',
+            duration_seconds: leg0 && leg0.duration ? leg0.duration.value : 0,
+            duration_text: leg0 && leg0.duration ? leg0.duration.text : '0 min',
+            start_address: leg0 ? leg0.start_address : '',
+            end_address: leg0 ? leg0.end_address : '',
+            encoded_polyline: route0.overview_polyline || '',
+            coordinates_path: pathCoords,
+            steps,
+          });
+        }
       } else {
-        console.warn(
-          '[MapView] DirectionsService status:', status,
-          '| origin:', originLat.toFixed(4), originLng.toFixed(4),
-          '| dest:', dest.latitude, dest.longitude
-        );
-        // Clear stale route on failure
         directionsRendererRef.current.setMap(null);
-        lastDirectionsKeyRef.current = '';
       }
     });
   }, [
@@ -390,7 +486,9 @@ export default function MapView({
     navState?.targetCustomer,
     selectedCustomer,
     multiRoute,
+    activeStopIndex,
     navState?.active,
+    route,
   ]);
 
   // ── 6. Officer GPS Marker + Follow-Me Camera ─────────────────────────────────

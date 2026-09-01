@@ -38,6 +38,7 @@ function MapPageContent() {
     currentStepIndex,
     isOffRoute,
     isFollowing,
+    setRoute: setNavigationRoute,
     startNavigation,
     stopNavigation,
     recalculateRoute,
@@ -314,6 +315,7 @@ function MapPageContent() {
           onOpenStreetView={handleOpenCustomerStreetView}
           onCloseStreetView={closeStreetView}
           onToggleFollow={toggleFollow}
+          onDirectionsCalculated={setNavigationRoute}
         />
       </div>
 

@@ -148,7 +148,7 @@ export function useNavigation(options: UseNavigationOptions = {}) {
     currentStepIndex,
     isOffRoute,
     isFollowing,
-    isCalculatingRoute,
+    setRoute,
     startNavigation,
     stopNavigation,
     recalculateRoute,
