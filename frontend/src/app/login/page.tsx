@@ -55,7 +55,6 @@ export default function LoginPage() {
           </div>
           <div className="pt-2">
             <h2 className="text-xl font-extrabold text-slate-900">Field Officer Login</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Sign in to access GIS consumer maps, route navigation, and bill collections.</p>
           </div>
         </div>
 

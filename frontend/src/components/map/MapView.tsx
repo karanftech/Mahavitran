@@ -131,6 +131,10 @@ export default function MapView({
   const onToggleFollowRef = useRef(onToggleFollow);
   onToggleFollowRef.current = onToggleFollow;
 
+  // FIX: Keep initGoogleMap in a ref so the async script callback always
+  // calls the LATEST version, not a stale closure captured at script-append time.
+  const initGoogleMapRef = useRef<() => void>(() => {});
+
   // ── Auto follow on navigation start/stop ────────────────────────────────────
   useEffect(() => {
     if (navState?.active) {
@@ -241,6 +245,9 @@ export default function MapView({
     setMapEngine('google');
   }, [disableFollowMode]);
 
+  // Keep ref in sync with latest initGoogleMap
+  useEffect(() => { initGoogleMapRef.current = initGoogleMap; }, [initGoogleMap]);
+
   // ── 3. Google Maps auth failure handler ─────────────────────────────────────
   useEffect(() => {
     (window as any).gm_authFailure = () => {
@@ -280,9 +287,10 @@ export default function MapView({
     script.async = true;
     script.defer = true;
 
-    // Use a named global callback — avoids stale closure problem
+    // FIX: Use initGoogleMapRef.current so the callback always calls the
+    // latest version of initGoogleMap, not a stale closure from before any re-renders.
     (window as any).__mahavitaranMapReady = () => {
-      initGoogleMap();
+      initGoogleMapRef.current();
       delete (window as any).__mahavitaranMapReady;
     };
 
@@ -296,37 +304,50 @@ export default function MapView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
-  // ── 5. Draw Route via DirectionsService (browser-side, real roads) ──────────
+  // ── 5. Draw Route via DirectionsService (browser-side, real road geometry) ────
   //
-  // KEY FIX: We use google.maps.DirectionsService on the BROWSER side.
-  // This uses the BROWSER API key correctly (with HTTP referrer restrictions)
-  // and returns real road geometry + real traffic-aware ETA.
-  // We do NOT use backend coordinates for drawing routes on Google Maps.
+  // Uses google.maps.DirectionsService directly in the browser with the browser
+  // API key. This correctly handles HTTP referrer restrictions and returns real
+  // road geometry. We draw directions when:
+  //   a) Navigation is active (officer navigating to a meter)
+  //   b) A customer is selected (route preview in the bottom sheet)
   useEffect(() => {
-    if (mapEngine !== 'google' || !googleMapRef.current || !directionsServiceRef.current || !directionsRendererRef.current) return;
+    if (mapEngine !== 'google' || !directionsServiceRef.current || !directionsRendererRef.current) return;
     const google = (window as any).google;
     if (!google) return;
 
-    const isNavActive = navState?.active === true;
-    const targetCustomer = navState?.targetCustomer ?? selectedCustomer;
+    // Destination: active nav target takes priority, then selected customer
+    const dest = navState?.targetCustomer ?? selectedCustomer;
 
-    // Build a fingerprint to avoid re-requesting same route
-    const origin = officerCoords;
-    const dest = targetCustomer;
-
-    if (!origin || !dest) {
-      // No route to draw — clear renderer
-      directionsRendererRef.current.setDirections({ routes: [] });
+    if (!dest) {
+      // No destination — hide route renderer
+      directionsRendererRef.current.setMap(null);
       lastDirectionsKeyRef.current = '';
       return;
     }
 
-    // Multi-stop: build waypoints from multiRoute stops
-    const stops = multiRoute?.stops ?? [];
-    const waypointsKey = stops.map(s => `${s.latitude},${s.longitude}`).join('|');
-    const fingerprint = `${origin.latitude.toFixed(5)},${origin.longitude.toFixed(5)}→${dest.latitude},${dest.longitude}|${waypointsKey}`;
+    // Ensure renderer is attached to the map
+    if (!directionsRendererRef.current.getMap()) {
+      directionsRendererRef.current.setMap(googleMapRef.current);
+    }
 
-    if (fingerprint === lastDirectionsKeyRef.current) return; // Same request — skip
+    // Officer origin: use real GPS or default to Nagpur center
+    const originLat = officerCoords?.latitude ?? 21.1458;
+    const originLng = officerCoords?.longitude ?? 79.0882;
+
+    // Multi-stop waypoints (intermediate stops between origin and final destination)
+    const stops = multiRoute?.stops ?? [];
+    const waypointsKey = stops.map(s => `${s.customer_id}`).join('|');
+
+    // Fingerprint rounded to 3dp (~111m) so tiny GPS jitter doesn't hammer the API
+    const fingerprint = [
+      originLat.toFixed(3),
+      originLng.toFixed(3),
+      dest.customer_id,
+      waypointsKey,
+    ].join('|');
+
+    if (fingerprint === lastDirectionsKeyRef.current) return; // Identical request — skip
     lastDirectionsKeyRef.current = fingerprint;
 
     const waypoints: { location: any; stopover: boolean }[] = stops
@@ -337,33 +358,39 @@ export default function MapView({
       }));
 
     const request = {
-      origin: new google.maps.LatLng(origin.latitude, origin.longitude),
+      origin: new google.maps.LatLng(originLat, originLng),
       destination: new google.maps.LatLng(dest.latitude, dest.longitude),
       waypoints,
-      optimizeWaypoints: stops.length > 1,
+      optimizeWaypoints: stops.length > 1, // Let Google optimize multi-stop order
+      // FIX: Do NOT include drivingOptions.trafficModel — it causes REQUEST_DENIED
+      // in regions where Google traffic data is restricted (e.g., India).
+      // Plain DRIVING mode returns real road geometry everywhere.
       travelMode: google.maps.TravelMode.DRIVING,
-      drivingOptions: {
-        departureTime: new Date(),
-        trafficModel: google.maps.TrafficModel.BEST_GUESS,
-      },
       unitSystem: google.maps.UnitSystem.METRIC,
     };
 
     directionsServiceRef.current.route(request, (result: any, status: any) => {
-      if (status === 'OK' && result) {
+      if (status === google.maps.DirectionsStatus.OK && result) {
+        directionsRendererRef.current.setMap(googleMapRef.current);
         directionsRendererRef.current.setDirections(result);
       } else {
-        console.warn('DirectionsService failed:', status, '— route line will not display.');
-        directionsRendererRef.current.setDirections({ routes: [] });
+        console.warn(
+          '[MapView] DirectionsService status:', status,
+          '| origin:', originLat.toFixed(4), originLng.toFixed(4),
+          '| dest:', dest.latitude, dest.longitude
+        );
+        // Clear stale route on failure
+        directionsRendererRef.current.setMap(null);
+        lastDirectionsKeyRef.current = '';
       }
     });
   }, [
     mapEngine,
     officerCoords,
-    navState?.active,
     navState?.targetCustomer,
     selectedCustomer,
     multiRoute,
+    navState?.active,
   ]);
 
   // ── 6. Officer GPS Marker + Follow-Me Camera ─────────────────────────────────

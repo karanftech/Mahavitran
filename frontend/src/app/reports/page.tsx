@@ -83,16 +83,11 @@ export default function ReportsPage() {
     <div id="printable-report" className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans bg-slate-50/50 min-h-screen">
       {/* Header Section with Mahavitaran Branding */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-2xs">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-1">
           <MahavitaranLogo size="lg" showSubtitle={true} />
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Field Officer Performance Report
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-              Real-time field visit log, consumer recovery status, and ward efficiency metrics.
-            </p>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight pl-1">
+            Field Officer Performance Report
+          </h1>
         </div>
 
         {/* Action Buttons */}
