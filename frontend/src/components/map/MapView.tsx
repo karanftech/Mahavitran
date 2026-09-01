@@ -147,6 +147,7 @@ export default function MapView({
 
   // Last direction request fingerprint (avoids duplicate API calls)
   const lastDirectionsKeyRef = useRef<string>('');
+  const lastFittedMultiRouteRef = useRef<string>('');
 
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
@@ -178,11 +179,10 @@ export default function MapView({
     if (navState?.active) {
       setIsFollowingInternal(true);
     } else {
-      // Reset 3D view when navigation ends
+      // Reset 3D view when navigation ends without forcing zoom level reset
       if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
         googleMapRef.current.setTilt(0);
         googleMapRef.current.setHeading(0);
-        googleMapRef.current.setZoom(15);
       }
       setIsFollowingInternal(false);
     }
@@ -392,11 +392,15 @@ export default function MapView({
           fallbackPolylineRef.current.setMap(googleMapRef.current);
         }
 
-        // Auto-fit camera bounds to display all 16 stops & route line
-        const bounds = new google.maps.LatLngBounds();
-        pathLatLngs.forEach((pt: any) => bounds.extend(pt));
-        if (!bounds.isEmpty()) {
-          googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
+        // Auto-fit camera bounds ONLY ONCE when a new multi-route is first calculated
+        const multiKey = `${multiRoute?.total_distance_meters}_${pathLatLngs.length}`;
+        if (multiKey !== lastFittedMultiRouteRef.current) {
+          lastFittedMultiRouteRef.current = multiKey;
+          const bounds = new google.maps.LatLngBounds();
+          pathLatLngs.forEach((pt: any) => bounds.extend(pt));
+          if (!bounds.isEmpty()) {
+            googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
+          }
         }
       }
     } else {
