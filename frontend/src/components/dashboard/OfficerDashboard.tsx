@@ -83,7 +83,7 @@ export default function OfficerDashboard() {
           <p className="font-semibold text-base">Unable to load Dashboard Metrics</p>
           <p className="text-xs text-red-600 max-w-lg mx-auto">{error || 'Could not retrieve metric details.'}</p>
           <button
-            onClick={fetchDashboard}
+            onClick={() => fetchDashboard(true)}
             className="px-4 py-2 bg-red-600 text-white font-medium text-xs rounded-md shadow-sm hover:bg-red-700 transition-colors"
           >
             Retry Loading Dashboard
