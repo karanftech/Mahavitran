@@ -73,7 +73,8 @@ export default function MapView({
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
   const [currentLayer, setCurrentLayer] = useState<MapLayerType>('roadmap');
-  const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(true);
+  // Default false: user controls map freely; only auto-follows during active navigation
+  const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(false);
 
   const isFollowing = navState?.isFollowing ?? isFollowingInternal;
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -96,6 +97,20 @@ export default function MapView({
       setIsFollowingInternal(false);
     }
   }, []);
+
+  // Auto-enable follow mode when navigation starts; reset map when navigation ends
+  useEffect(() => {
+    if (navState?.active) {
+      setIsFollowingInternal(true);
+    } else {
+      // Navigation ended - reset tilt/heading to normal map view
+      if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
+        googleMapRef.current.setTilt(0);
+        googleMapRef.current.setHeading(0);
+      }
+      setIsFollowingInternal(false);
+    }
+  }, [navState?.active, mapEngine]);
 
   // 1. Initialize Leaflet OpenStreetMap Fallback with CartoDB Voyager tiles (Clear City & Ward Labels)
   const initLeafletMap = useCallback(() => {
@@ -171,6 +186,7 @@ export default function MapView({
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
+      gestureHandling: 'greedy',
       styles: [
         {
           featureType: 'administrative',
@@ -199,9 +215,8 @@ export default function MapView({
     infoWindowRef.current = new google.maps.InfoWindow();
     directionsServiceRef.current = new google.maps.DirectionsService();
 
-    // Disable follow camera if user manually pans OR zooms in/out
+    // Only disable follow if user manually drags (not on zoom)
     googleMapRef.current.addListener('dragstart', () => disableFollowMode());
-    googleMapRef.current.addListener('zoom_changed', () => disableFollowMode());
 
     routePolylineRef.current = new google.maps.Polyline({
       map: googleMapRef.current,
@@ -290,11 +305,22 @@ export default function MapView({
       officerMarkerRef.current.setIcon(createOfficerMarkerIcon(google, officerHeading));
     }
 
-    // Follow-Me mode: center camera on officer
-    if (isFollowing) {
+    // Follow-Me mode: only auto-pan when navigation is active or user explicitly turned it on
+    const isNavigationActive = navState?.active === true;
+    if (isFollowing && (isNavigationActive || isFollowingInternal)) {
       googleMapRef.current.panTo(pos);
+      // 3D tilt for navigation mode (Google Maps style driving view)
+      if (isNavigationActive) {
+        googleMapRef.current.setTilt(45);
+        googleMapRef.current.setZoom(17);
+        if (officerHeading !== null && officerHeading !== undefined) {
+          googleMapRef.current.setHeading(officerHeading);
+        }
+      } else {
+        googleMapRef.current.setTilt(0);
+      }
     }
-  }, [mapEngine, officerCoords, officerHeading, isFollowing]);
+  }, [mapEngine, officerCoords, officerHeading, isFollowing, isFollowingInternal, navState?.active]);
 
   // Render Google Maps Consumer Markers & Polyline Route with In-Place Updates
   useEffect(() => {
@@ -455,9 +481,13 @@ export default function MapView({
     } else {
       setIsFollowingInternal((prev) => !prev);
     }
+    // Snap camera to officer position when re-centering
     if (officerCoords && googleMapRef.current && (window as any).google) {
       googleMapRef.current.panTo({ lat: officerCoords.latitude, lng: officerCoords.longitude });
-      googleMapRef.current.setZoom(16);
+      googleMapRef.current.setZoom(navState?.active ? 17 : 15);
+      googleMapRef.current.setTilt(0);
+    } else if (officerCoords && leafletMapRef.current) {
+      leafletMapRef.current.setView([officerCoords.latitude, officerCoords.longitude], 15);
     }
   };
 

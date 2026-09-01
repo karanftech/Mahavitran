@@ -31,11 +31,11 @@ class CustomerImportService:
 
             if any(k in h for k in ['cus id', 'customer id', 'customer_id', 'cus_id', 'cust id']):
                 mapping['customer_id'] = idx
-            elif any(k in h for k in ['cons no', 'consumer no', 'consumer_no', 'name', 'consumer name']):
+            elif any(k in h for k in ['cons no', 'cons_no', 'consumer no', 'consumer_no', 'name', 'consumer name']):
                 mapping['name'] = idx
             elif any(k in h for k in ['meter id', 'meter_id', 'meter number', 'meter_number', 'meter no', 'mtr id']):
                 mapping['meter_number'] = idx
-            elif any(k in h for k in ['total deu amt', 'total due amt', 'pending_amount', 'due amount', 'bill amount', 'pending amount', 'amount']):
+            elif any(k in h for k in ['total deu amt', 'total_due_amt', 'total due amt', 'pending_amount', 'due amount', 'bill amount', 'pending amount', 'amount']):
                 mapping['pending_amount'] = idx
             elif any(k in h for k in ['latitude', 'lat']):
                 mapping['latitude'] = idx

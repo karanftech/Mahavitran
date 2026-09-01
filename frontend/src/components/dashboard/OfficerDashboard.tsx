@@ -19,8 +19,16 @@ export default function OfficerDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
 
-  const fetchDashboard = async () => {
-    setLoading(true);
+  // Memoize GPS coords to a rounded grid (~500m precision) to avoid refetching on tiny GPS jitter
+  const coordKey = React.useMemo(() => {
+    if (!coords) return 'default';
+    const lat = Math.round(coords.latitude * 100) / 100;
+    const lng = Math.round(coords.longitude * 100) / 100;
+    return `${lat},${lng}`;
+  }, [coords]);
+
+  const fetchDashboard = async (showFullLoader = false) => {
+    if (showFullLoader) setLoading(true);
     setError(null);
     try {
       const response = await api.get<OfficerDashboardMetrics>('/api/dashboard/officer', {
@@ -38,9 +46,19 @@ export default function OfficerDashboard() {
     }
   };
 
+  // Initial load only – show full skeleton
   useEffect(() => {
-    fetchDashboard();
-  }, [coords]);
+    fetchDashboard(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Background GPS-based refresh – silent (no skeleton flash)
+  useEffect(() => {
+    if (metrics !== null) {
+      fetchDashboard(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordKey]);
 
   if (loading) {
     return (

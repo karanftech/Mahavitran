@@ -66,18 +66,53 @@
 
 /* Print CSS */
 @media print {
-  body * {
-    visibility: hidden;
+  /* Hide everything by default */
+  nav, header, aside, footer,
+  [class*="Sidebar"], [class*="Navbar"],
+  [class*="OfflineSyncBanner"],
+  .print\:hidden {
+    display: none !important;
   }
-  #printable-receipt, #printable-receipt * {
-    visibility: visible;
+
+  /* Show printable report content */
+  body {
+    background: white !important;
   }
-  #printable-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+
+  #printable-report {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 16px !important;
     background: white !important;
     color: black !important;
+  }
+
+  #printable-report * {
+    visibility: visible !important;
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Legacy receipt print support */
+  #printable-receipt {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  #printable-receipt * {
+    visibility: visible !important;
+  }
+
+  /* Page layout */
+  @page {
+    margin: 1cm;
+    size: A4;
   }
 }

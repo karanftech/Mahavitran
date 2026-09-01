@@ -80,16 +80,13 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans bg-slate-50/50 min-h-screen">
+    <div id="printable-report" className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans bg-slate-50/50 min-h-screen">
       {/* Header Section with Mahavitaran Branding */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-2xs">
         <div className="flex items-center gap-4">
           <MahavitaranLogo size="lg" showSubtitle={true} />
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Field Operations Reporting
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Field Officer Performance Report
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
@@ -99,7 +96,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="print:hidden flex items-center gap-3 shrink-0">
           <button
             onClick={fetchReportData}
             disabled={loading}
@@ -234,7 +231,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Controls: Search and Status Dropdown */}
-          <div className="flex items-center gap-3">
+          <div className="print:hidden flex items-center gap-3">
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="text"
