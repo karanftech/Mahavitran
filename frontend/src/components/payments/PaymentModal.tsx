@@ -67,6 +67,12 @@ export default function PaymentModal({
 
     setIsSubmitting(true);
 
+    // Map UI payment method values to backend-accepted values
+    const backendPaymentMethod: 'cash' | 'upi' | 'online' | 'other' =
+      paymentMethod === 'upi_online' ? 'upi'
+      : paymentMethod === 'cheque' ? 'other'
+      : paymentMethod;
+
     const payload = {
       customer_id: customer.customer_id,
       meter_id: customer.meters?.[0]?.meter_id,
@@ -109,8 +115,8 @@ export default function PaymentModal({
         return;
       }
 
-      // Online collection via FastAPI backend
-      const result = await paymentService.collectPayment(payload);
+      // Online collection via FastAPI backend — send backend-mapped method
+      const result = await paymentService.collectPayment({ ...payload, payment_method: backendPaymentMethod });
 
       setIsSubmitting(false);
       onSuccess(result);

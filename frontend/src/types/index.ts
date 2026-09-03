@@ -67,7 +67,7 @@ export interface PaymentCollectionPayload {
   customer_id: string;
   meter_id?: string;
   amount: number;
-  payment_method: 'cash' | 'upi' | 'online' | 'other';
+  payment_method: 'cash' | 'upi' | 'online' | 'other' | 'upi_online' | 'cheque';
   transaction_reference?: string;
   remarks?: string;
   collection_latitude?: number;
