@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Electricity Bill Collection & Navigation System API",
-    description="Backend services for electricity department field officer collections, GIS map customer tracking, route calculation, and admin management.",
+    description="Backend services for electricity department field officer collections, GIS map customer tracking, and route calculation.",
     version="1.0.0",
     lifespan=lifespan
 )

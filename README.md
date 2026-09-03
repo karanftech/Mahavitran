@@ -50,19 +50,18 @@ d:/Projects/New folder/
 │   │   ├── routers/                  # REST API Endpoints (auth, customers, bills, payments, routes, officers)
 │   │   └── utils/                    # Security & JWT dependencies
 │   ├── requirements.txt              # Python dependencies
-│   ├── seed_data.py                  # Seed script for initial DB data & admin/officer accounts
+│   ├── seed_data.py                  # Seed script for initial DB data & officer accounts
 │   └── .env                          # Backend environment variables
 │
 └── frontend/
     ├── src/
     │   ├── app/                      # Next.js 14 App Router Pages
     │   │   ├── login/                # Authentication Portal
-    │   │   ├── dashboard/            # Role-aware Officer & Admin Dashboards
+    │   │   ├── dashboard/            # Officer Dashboard
     │   │   ├── map/                  # Google Maps Field Navigation & Turn-by-Turn Routing
     │   │   ├── customers/            # Consumer & Meter Directory & Profile Views
     │   │   ├── payments/             # Transaction Collection Logs & Digital Receipts
-    │   │   ├── reports/              # Executive Revenue Analytics
-    │   │   └── admin/officers/       # Officer Creation & Assignment Panel
+    │   │   └── reports/              # Executive Revenue Analytics
     │   ├── components/               # Map, Payment, Receipt, Dashboard & UI components
     │   ├── services/                 # Google Maps, Route, Auth, Customer, Payment & Offline Services
     │   ├── hooks/                    # useAuth, useGeolocation, useNavigation, useStreetView, useOffline hooks
@@ -158,10 +157,6 @@ d:/Projects/New folder/
 - **Email**: `officer1@electricity.gov.in`
 - **Password**: `officer123`
 
-### Admin Account
-- **Email**: `admin@electricity.gov.in`
-- **Password**: `admin123`
-
 ---
 
 ## Key Features & Operational Flow
@@ -177,4 +172,3 @@ d:/Projects/New folder/
 5. **Map Styles & Controls**: Toggle between Default Roadmap, Satellite, Hybrid, and Terrain layers, with Follow-Me camera tracking and Recenter buttons.
 6. **Payment Collection & Digital Receipts**: Supports Cash, UPI, Online, and Other payment methods with transaction references, validation rules, partial payment support, and printable digital collection receipts.
 7. **Offline Sync Engine**: Queues offline collections in local browser storage when internet connection drops and auto-syncs upon reconnecting.
-8. **Admin Management Panel**: Allows admins to create field officers, track collection performance, and assign consumers/meters to officers.

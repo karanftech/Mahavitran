@@ -7,14 +7,14 @@ from uuid import uuid4
 from app.database import get_database
 from app.schemas.officer import OfficerCreate, OfficerUpdate, OfficerResponse
 from app.utils.security import get_password_hash
-from app.utils.dependencies import get_current_user, require_admin
+from app.utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/officers", tags=["Field Officers"])
 
 @router.get("", response_model=List[OfficerResponse])
 async def list_officers(
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: dict = Depends(require_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     officers_docs = await db.officers.find().to_list(100)
 
@@ -57,7 +57,7 @@ async def list_officers(
 async def create_officer(
     request: OfficerCreate,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: dict = Depends(require_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     existing_user = await db.users.find_one({"email": request.email.lower()})
     if existing_user:

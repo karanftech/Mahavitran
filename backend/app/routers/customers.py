@@ -8,7 +8,7 @@ from app.database import get_database
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse, NearbyCustomerResponse, MeterSchema
 from app.services.customer_service import CustomerService
 from app.services.customer_import_service import CustomerImportService
-from app.utils.dependencies import get_current_user, require_admin
+from app.utils.dependencies import get_current_user
 
 
 router = APIRouter(prefix="/api/customers", tags=["Customers"])
@@ -133,7 +133,7 @@ async def list_customers(
 async def create_customer(
     request: CustomerCreate,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: dict = Depends(require_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     existing = await db.customers.find_one({"customer_id": request.customer_id})
     if existing:

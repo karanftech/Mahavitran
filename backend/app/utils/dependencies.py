@@ -32,16 +32,8 @@ async def get_current_user(
     user["_id"] = str(user["_id"])
     return user
 
-async def require_admin(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
-    if current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Operation permitted only for Administrators"
-        )
-    return current_user
-
 async def require_officer(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
-    if current_user.get("role") not in ["field_officer", "admin"]:
+    if current_user.get("role") != "field_officer":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Operation permitted only for Field Officers"

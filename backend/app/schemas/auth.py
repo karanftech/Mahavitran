@@ -36,7 +36,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     full_name: str
-    role: str  # "admin" | "field_officer"
+    role: str = "field_officer"
     phone: Optional[str] = None
     officer_id: Optional[str] = None
     is_active: bool = True

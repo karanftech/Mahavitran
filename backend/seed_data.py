@@ -33,20 +33,7 @@ async def seed_database():
     await db.audit_logs.delete_many({})
 
 
-    # 2. Insert Admin User
-    admin_user = {
-        "email": "admin@electricity.gov.in",
-        "password_hash": get_hash("admin123"),
-        "full_name": "Executive Engineer (Admin)",
-        "role": "admin",
-        "phone": "+91 9876543210",
-        "is_active": True,
-        "created_at": now_str
-    }
-    admin_res = await db.users.insert_one(admin_user)
-    print("✔ Inserted Admin Account: admin@electricity.gov.in / admin123")
-
-    # 3. Insert Field Officers
+    # 2. Insert Field Officers
     off1_user = {
         "email": "officer1@electricity.gov.in",
         "password_hash": get_hash("officer123"),

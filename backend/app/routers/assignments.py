@@ -3,7 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime
 from app.database import get_database
 from app.schemas.officer import CustomerAssignmentRequest
-from app.utils.dependencies import require_admin
+from app.utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/assignments", tags=["Assignments"])
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/assignments", tags=["Assignments"])
 async def assign_customers(
     request: CustomerAssignmentRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: dict = Depends(require_admin)
+    current_user: dict = Depends(get_current_user)
 ):
     officer = await db.officers.find_one({"officer_id": request.officer_id})
     if not officer:

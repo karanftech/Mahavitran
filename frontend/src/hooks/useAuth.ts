@@ -23,7 +23,6 @@ export function useAuth() {
   return {
     user,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
     isOfficer: user?.role === 'field_officer',
     isLoading,
   };

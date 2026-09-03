@@ -7,12 +7,10 @@ import { Customer } from '@/types';
 import { customerService } from '@/services/customerService';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import StatusBadge from '@/components/ui/Badge';
-import { useAuth } from '@/hooks/useAuth';
 import BulkUploadModal from '@/components/customers/BulkUploadModal';
 
 
 export default function CustomersPage() {
-  const { isAdmin } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
