@@ -122,7 +122,7 @@ export default function OfficerDashboard() {
             className="py-2 px-3.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
           >
             <Upload className="w-4 h-4 text-blue-600" />
-            <span>Upload Data (CSV)</span>
+            <span>Upload Data (CSV/Excel)</span>
           </button>
 
           <Link
