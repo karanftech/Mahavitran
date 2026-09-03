@@ -3,22 +3,24 @@
 export const createOfficerMarkerIcon = (google: any, heading: number | null = 0) => {
   const rotationAngle = heading !== null && !isNaN(heading) ? heading : 0;
 
-  // Embedding SVG transform rotate directly inside the SVG markup allows SVG data URLs
-  // to rotate to match the officer's live compass direction / travel heading in Google Maps.
+  // Simple, clean navigation arrow icon (Google Maps / Apple Maps style)
   const svgContent = `
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="24" cy="24" r="20" fill="#0284c7" fill-opacity="0.2" />
-      <circle cx="24" cy="24" r="18" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3 3" />
-      <g transform="rotate(${rotationAngle}, 24, 24)">
-        <path d="M24 5L33 37L24 29L15 37L24 5Z" fill="#0284c7" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>
-        <circle cx="24" cy="24" r="4.5" fill="#FFFFFF" />
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Soft GPS Accuracy Halo -->
+      <circle cx="22" cy="22" r="18" fill="#2563eb" fill-opacity="0.18" />
+      <circle cx="22" cy="22" r="18" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.4" />
+      
+      <!-- Clean Navigation Arrow -->
+      <g transform="rotate(${rotationAngle}, 22, 22)">
+        <path d="M22 6 L33 36 L22 29 L11 36 Z" fill="#2563eb" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>
       </g>
     </svg>
   `;
 
   return {
     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgContent),
-    scaledSize: new google.maps.Size(48, 48),
-    anchor: new google.maps.Point(24, 24),
+    scaledSize: new google.maps.Size(44, 44),
+    anchor: new google.maps.Point(22, 22),
   };
 };
+
