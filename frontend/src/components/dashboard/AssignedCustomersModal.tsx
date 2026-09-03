@@ -68,22 +68,12 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
       <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
+        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-blue-600 text-white shadow-xs">
-              <Users className="w-5 h-5" />
+            <div className="p-2 rounded-lg bg-blue-600 text-white shadow-xs">
+              <Users className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">Assigned Customers Directory</h2>
-                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-extrabold border border-blue-200">
-                  {customers.length} Consumers
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Complete roster of electricity meters and consumer accounts assigned to you
-              </p>
-            </div>
+            <h2 className="text-base font-bold text-slate-900 leading-none">Customer Directory</h2>
           </div>
 
           <button

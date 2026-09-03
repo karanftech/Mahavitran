@@ -28,12 +28,12 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           {user && (
-            <div className="flex items-center gap-2.5 bg-slate-100 border border-slate-200 rounded-md py-1.5 px-3">
-              <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center text-blue-700">
-                <UserIcon className="w-3.5 h-3.5" />
+            <div className="hidden sm:flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full p-1 pr-3 shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                <UserIcon className="w-4 h-4" />
               </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">{user.full_name}</p>
+              <div className="text-left">
+                <p className="text-xs font-bold text-slate-800 leading-tight">{user.full_name}</p>
                 <p className="text-[10px] text-slate-500 capitalize font-medium">
                   Field Officer
                 </p>
@@ -43,11 +43,11 @@ export default function Navbar() {
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-medium border border-slate-300 shadow-xs"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex flex-col items-center justify-center gap-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-xs transition-colors cursor-pointer shrink-0"
             title="Sign out"
           >
-            <LogOut className="w-4 h-4 text-slate-500" />
-            <span className="hidden sm:inline">Logout</span>
+            <LogOut className="w-4 h-4 text-rose-600" />
+            <span className="text-[8px] font-extrabold text-rose-700 leading-none">Logout</span>
           </button>
         </div>
       </div>

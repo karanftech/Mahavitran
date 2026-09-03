@@ -2,13 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, MapPin, Users, CreditCard, BarChart3, UserCheck } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, MapPin, Users, CreditCard, BarChart3, UserCheck, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { authService } from '@/services/authService';
 import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const isMapPage = pathname === '/map' || pathname.startsWith('/map');
 
@@ -53,7 +55,7 @@ export default function Sidebar() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 px-2 py-1.5 flex justify-around items-center shadow-lg">
-        {navItems.slice(0, 5).map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
