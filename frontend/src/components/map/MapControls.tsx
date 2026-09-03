@@ -54,37 +54,6 @@ export default function MapControls({
 
   return (
     <div className="absolute bottom-24 right-4 md:bottom-6 md:right-6 flex flex-col gap-2 z-30 select-none">
-      {/* 3D Perspective Tilt Button (2D Flat <-> 3D Driving Perspective) */}
-      {onToggle3D && (
-        <button
-          onClick={onToggle3D}
-          className={`w-10 h-10 rounded-xl font-black text-xs border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
-            is3D
-              ? 'bg-gradient-to-br from-indigo-600 to-sky-600 text-white border-sky-400 ring-2 ring-sky-400/50 shadow-sky-500/30'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-          }`}
-          title={is3D ? '3D View Active (Click for 2D Top-Down View)' : 'Switch to 3D Perspective View (or 2-finger drag map)'}
-        >
-          <span className="tracking-tighter font-extrabold text-[11px]">3D</span>
-        </button>
-      )}
-
-      {/* 3D Compass Widget (Rotates with officer heading / Click to align True North) */}
-      <button
-        onClick={onResetNorth}
-        className="w-10 h-10 rounded-xl bg-slate-900/90 hover:bg-slate-900 text-white border border-slate-700/80 shadow-xl flex flex-col items-center justify-center transition-all group active:scale-95 cursor-pointer"
-        title={`Compass: ${headingAngle}° ${cardinalDir} — Click to Align True North`}
-      >
-        <div
-          className="transition-transform duration-300 ease-out"
-          style={{ transform: `rotate(${headingAngle}deg)` }}
-        >
-          <Compass className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
-        </div>
-        <span className="text-[7.5px] font-black text-sky-400 -mt-0.5 tracking-tighter">
-          {cardinalDir}
-        </span>
-      </button>
 
       {/* Map Layers Switcher Button & Popup */}
       <div className="relative">

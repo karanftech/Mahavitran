@@ -283,19 +283,19 @@ function MapPageContent() {
         <OfflineSyncBanner />
       </div>
 
-      {/* Top Map Search & Filter Bar */}
-      {!isNavigating && (
-        <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
-          <MapFilters
-            filters={filters}
-            onFilterChange={setFilters}
-            customerCounts={counts}
-            onNavigateAll={handleStartMultiNavigation}
-            isCalculatingMultiRoute={isCalculatingMultiRoute}
-            filteredCount={filteredCustomers.length}
-          />
-        </div>
-      )}
+      {/* Top Map Search & Filter Bar (Floating Google Maps Pill UI) */}
+      <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
+        <MapFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          customerCounts={counts}
+          onNavigateAll={handleStartMultiNavigation}
+          onStopNavigation={isMultiNavigating ? handleStopMultiNavigation : stopNavigation}
+          isNavigating={isNavigating || isMultiNavigating}
+          isCalculatingMultiRoute={isCalculatingMultiRoute}
+          filteredCount={filteredCustomers.length}
+        />
+      </div>
 
       {/* Main Interactive Map Canvas */}
       <div className="w-full h-full">
