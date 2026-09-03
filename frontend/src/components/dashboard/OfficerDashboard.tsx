@@ -9,6 +9,7 @@ import api from '@/services/api';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
 import BulkUploadModal from '@/components/customers/BulkUploadModal';
+import AssignedCustomersModal from '@/components/dashboard/AssignedCustomersModal';
 
 import { Upload, FileSpreadsheet } from 'lucide-react';
 
@@ -18,6 +19,8 @@ export default function OfficerDashboard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [isAssignedModalOpen, setIsAssignedModalOpen] = useState<boolean>(false);
+  const [modalFilter, setModalFilter] = useState<string>('');
 
   // Memoize GPS coords to a rounded grid (~500m precision) to avoid refetching on tiny GPS jitter
   const coordKey = React.useMemo(() => {
@@ -106,6 +109,13 @@ export default function OfficerDashboard() {
         }}
       />
 
+      {/* Assigned Customers Modal */}
+      <AssignedCustomersModal
+        isOpen={isAssignedModalOpen}
+        onClose={() => setIsAssignedModalOpen(false)}
+        initialFilter={modalFilter}
+      />
+
       {/* Header Greeting */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
         <div>
@@ -137,14 +147,30 @@ export default function OfficerDashboard() {
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Card 1: Total Assigned */}
-        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
-          <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center mb-1">
-            <Users className="w-4 h-4" />
+        {/* Card 1: Total Assigned (Clickable) */}
+        <button
+          onClick={() => {
+            setModalFilter('');
+            setIsAssignedModalOpen(true);
+          }}
+          className="bg-white border border-slate-200 hover:border-blue-500 p-4 rounded-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title="Click to view assigned customers & meter details"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-8 h-8 rounded bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white transition-colors flex items-center justify-center mb-1">
+              <Users className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 transition-colors flex items-center gap-0.5">
+              View List <ChevronRight className="w-3 h-3 inline" />
+            </span>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase font-semibold">Assigned Customers</p>
-          <p className="text-2xl font-bold text-slate-900">{metrics.total_assigned_customers}</p>
-        </div>
+          <p className="text-[11px] text-slate-500 group-hover:text-blue-900 uppercase font-semibold transition-colors">
+            Assigned Customers
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">
+            {metrics.total_assigned_customers}
+          </p>
+        </button>
 
         {/* Card 2: Total Pending Amount */}
         <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
@@ -155,14 +181,30 @@ export default function OfficerDashboard() {
           <p className="text-2xl font-bold text-amber-600">{formatCurrency(metrics.total_pending_amount)}</p>
         </div>
 
-        {/* Card 3: Pending Bills Count */}
-        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
-          <div className="w-8 h-8 rounded bg-red-50 text-red-600 flex items-center justify-center mb-1">
-            <FileText className="w-4 h-4" />
+        {/* Card 3: Pending Bills Count (Clickable) */}
+        <button
+          onClick={() => {
+            setModalFilter('pending');
+            setIsAssignedModalOpen(true);
+          }}
+          className="bg-white border border-slate-200 hover:border-red-500 p-4 rounded-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-red-500"
+          title="Click to view pending customer list"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-8 h-8 rounded bg-red-50 group-hover:bg-red-600 text-red-600 group-hover:text-white transition-colors flex items-center justify-center mb-1">
+              <FileText className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-bold text-red-600 bg-red-50 group-hover:bg-red-100 px-2 py-0.5 rounded-full border border-red-200 transition-colors flex items-center gap-0.5">
+              View Pending <ChevronRight className="w-3 h-3 inline" />
+            </span>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase font-semibold">Pending Customers</p>
-          <p className="text-2xl font-bold text-slate-900">{metrics.number_of_pending_bills}</p>
-        </div>
+          <p className="text-[11px] text-slate-500 group-hover:text-red-900 uppercase font-semibold transition-colors">
+            Pending Customers
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 group-hover:text-red-600 transition-colors">
+            {metrics.number_of_pending_bills}
+          </p>
+        </button>
 
         {/* Card 4: Completed Collections */}
         <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
