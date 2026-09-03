@@ -117,7 +117,7 @@ export default function OfficerDashboard() {
       />
 
       {/* Header Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
         <div>
           <span className="px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200 inline-block mb-1.5">
             Field Officer Portal
@@ -126,20 +126,20 @@ export default function OfficerDashboard() {
           <p className="text-xs text-slate-500 mt-0.5">Locate meters, navigate routes, and collect pending electricity bills.</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-row items-center gap-2 shrink-0">
           <button
             onClick={() => setIsUploadModalOpen(true)}
-            className="py-2 px-3.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            className="h-8 px-3 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0"
           >
-            <Upload className="w-4 h-4 text-blue-600" />
+            <Upload className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span>Upload Data (CSV/Excel)</span>
           </button>
 
           <Link
             href="/map"
-            className="py-2 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm flex items-center justify-center gap-2 transition-colors shrink-0"
+            className="h-8 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0"
           >
-            <Zap className="w-4 h-4 fill-current" />
+            <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
             <span>Open Interactive Map</span>
           </Link>
         </div>
