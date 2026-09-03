@@ -277,7 +277,7 @@ function MapPageContent() {
 
 
   return (
-    <div className="relative w-full h-full min-h-screen flex flex-col overflow-hidden">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Offline Sync Banner */}
       <div className="z-40">
         <OfflineSyncBanner />

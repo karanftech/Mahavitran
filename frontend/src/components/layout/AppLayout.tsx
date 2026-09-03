@@ -32,13 +32,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (isMapPage) {
+    return (
+      <div className="h-[100dvh] h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 flex flex-col font-sans">
+        <OfflineSyncBanner />
+        <div className="flex flex-1 relative overflow-hidden h-full w-full">
+          <Sidebar />
+          <main className="flex-1 w-full h-full overflow-hidden relative">
+            {children}
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {!isMapPage && <Navbar />}
+      <Navbar />
       <OfflineSyncBanner />
       <div className="flex flex-1 relative overflow-hidden pb-16 md:pb-0">
         <Sidebar />
-        <main className={`flex-1 overflow-y-auto ${isMapPage ? 'h-screen' : 'min-h-[calc(100vh-4rem)]'}`}>
+        <main className="flex-1 overflow-y-auto min-h-[calc(100vh-4rem)]">
           {children}
         </main>
       </div>
