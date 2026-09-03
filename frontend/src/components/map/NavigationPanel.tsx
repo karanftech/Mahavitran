@@ -15,7 +15,7 @@ import {
   ArrowRight,
   MapPin,
 } from 'lucide-react';
-import { NavigationState } from '@/types';
+import { NavigationState, Customer } from '@/types';
 import { speakInstruction, stopSpeech } from '@/utils/speech';
 
 interface NavigationPanelProps {
