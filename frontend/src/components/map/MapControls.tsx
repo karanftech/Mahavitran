@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Crosshair, Layers, Maximize2, Compass, Eye, Plus, Minus, Check } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Crosshair, Layers, Maximize2, Eye, Plus, Minus, Check, Menu, X } from 'lucide-react';
 import { MapLayerType } from '@/types';
 
 interface MapControlsProps {
@@ -19,28 +19,31 @@ interface MapControlsProps {
   onZoomOut?: () => void;
 }
 
-function getCardinalDirection(angle: number): string {
-  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const normalized = ((angle % 360) + 360) % 360;
-  const index = Math.round(normalized / 45) % 8;
-  return directions[index];
-}
-
 export default function MapControls({
   currentLayer,
   isFollowing,
-  is3D = false,
-  officerHeading = 0,
   onToggleFollow,
   onSelectLayer,
   onFitBounds,
-  onResetNorth,
-  onToggle3D,
   onOpenStreetView,
   onZoomIn,
   onZoomOut,
 }: MapControlsProps) {
-  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState<boolean>(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+        setIsLayerMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const layerOptions: { type: MapLayerType; label: string }[] = [
     { type: 'roadmap', label: 'Default Map' },
@@ -49,108 +52,180 @@ export default function MapControls({
     { type: 'terrain', label: 'Terrain' },
   ];
 
-  const headingAngle = officerHeading !== null && !isNaN(officerHeading!) ? Math.round(officerHeading!) : 0;
-  const cardinalDir = getCardinalDirection(headingAngle);
-
-  return (
-    <div className="absolute bottom-24 right-4 md:bottom-6 md:right-6 flex flex-col gap-2 z-30 select-none">
-
-      {/* Map Layers Switcher Button & Popup */}
-      <div className="relative">
-        <button
-          onClick={() => setIsLayerMenuOpen((prev) => !prev)}
-          className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
-            isLayerMenuOpen
-              ? 'bg-slate-900 text-sky-400 border-slate-700 ring-2 ring-sky-500'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-          }`}
-          title="Switch Map Layer"
-        >
-          <Layers className="w-5 h-5" />
-        </button>
-
-        {isLayerMenuOpen && (
-          <div className="absolute right-12 bottom-0 w-44 bg-slate-900/95 backdrop-blur-md border border-slate-700 text-white rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
-            <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 px-3 py-1">
-              Map Style
-            </p>
-            <div className="space-y-1">
-              {layerOptions.map((opt) => (
-                <button
-                  key={opt.type}
-                  onClick={() => {
-                    onSelectLayer(opt.type);
-                    setIsLayerMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                    currentLayer === opt.type
-                      ? 'bg-sky-600 text-white'
-                      : 'hover:bg-slate-800 text-slate-300'
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  {currentLayer === opt.type && <Check className="w-3.5 h-3.5" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 360° Street View Toggle */}
-      {onOpenStreetView && (
-        <button
-          onClick={onOpenStreetView}
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-indigo-600 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
-          title="View 360° Street View"
-        >
-          <Eye className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* Recenter & Follow-Me Toggle */}
-      <button
-        onClick={onToggleFollow}
-        className={`w-10 h-10 rounded-xl font-semibold border shadow-lg flex items-center justify-center transition-all cursor-pointer ${
-          isFollowing
-            ? 'bg-sky-600 text-white border-sky-500 ring-2 ring-sky-400 animate-pulse'
-            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-        }`}
-        title={isFollowing ? 'Follow-Me Camera ON (Click to unlock)' : 'Recenter & Lock Camera on Officer'}
-      >
-        <Crosshair className="w-5 h-5" />
-      </button>
-
-      {/* Fit All Assigned Meters Bounds */}
-      <button
-        onClick={onFitBounds}
-        className="w-10 h-10 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-200 shadow-lg flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
-        title="Fit All Assigned Meters"
-      >
-        <Maximize2 className="w-5 h-5" />
-      </button>
-
-      {/* Zoom In & Zoom Out Controls */}
-      {onZoomIn && (
-        <div className="flex flex-col bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+  // List of separate action controls (ordered top-to-bottom)
+  const actions = [
+    {
+      id: 'layers',
+      node: (
+        <div className="relative">
           <button
-            onClick={onZoomIn}
-            className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 border-b border-slate-200 transition-colors cursor-pointer active:bg-slate-200"
-            title="Zoom In"
+            onClick={() => setIsLayerMenuOpen((prev) => !prev)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer shadow-lg border ${
+              isLayerMenuOpen || currentLayer !== 'roadmap'
+                ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-400/50'
+                : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+            }`}
+            title="Switch Map Layer"
           >
-            <Plus className="w-4 h-4" />
+            <Layers className="w-4 h-4" />
           </button>
-          {onZoomOut && (
-            <button
-              onClick={onZoomOut}
-              className="w-10 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer active:bg-slate-200"
-              title="Zoom Out"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
+
+          {/* Smooth Layer Popup */}
+          {isLayerMenuOpen && (
+            <div className="absolute right-12 bottom-0 w-40 bg-white/95 backdrop-blur-md border border-slate-200 text-slate-800 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 slide-in-from-right-2 duration-200">
+              <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 px-2.5 py-1">
+                Map Layer
+              </p>
+              <div className="space-y-1">
+                {layerOptions.map((opt) => (
+                  <button
+                    key={opt.type}
+                    onClick={() => {
+                      onSelectLayer(opt.type);
+                      setIsLayerMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      currentLayer === opt.type
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {currentLayer === opt.type && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
-      )}
+      ),
+    },
+    {
+      id: 'recenter',
+      node: (
+        <button
+          onClick={onToggleFollow}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer shadow-lg border ${
+            isFollowing
+              ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-400/50 animate-pulse'
+              : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+          }`}
+          title={isFollowing ? 'Follow-Me Camera ON' : 'Recenter Camera'}
+        >
+          <Crosshair className="w-4 h-4" />
+        </button>
+      ),
+    },
+    {
+      id: 'fitBounds',
+      node: (
+        <button
+          onClick={onFitBounds}
+          className="w-10 h-10 rounded-full bg-white/95 text-slate-700 hover:bg-slate-50 hover:text-blue-600 border border-slate-200 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer"
+          title="Fit All Assigned Meters"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      ),
+    },
+    ...(onOpenStreetView
+      ? [
+          {
+            id: 'streetView',
+            node: (
+              <button
+                onClick={onOpenStreetView}
+                className="w-10 h-10 rounded-full bg-white/95 text-indigo-600 hover:bg-indigo-50 border border-slate-200 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer"
+                title="View 360° Street View"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            ),
+          },
+        ]
+      : []),
+    ...(onZoomIn
+      ? [
+          {
+            id: 'zoomIn',
+            node: (
+              <button
+                onClick={onZoomIn}
+                className="w-10 h-10 rounded-full bg-white/95 text-slate-700 hover:bg-slate-50 hover:text-blue-600 border border-slate-200 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer"
+                title="Zoom In"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            ),
+          },
+        ]
+      : []),
+    ...(onZoomOut
+      ? [
+          {
+            id: 'zoomOut',
+            node: (
+              <button
+                onClick={onZoomOut}
+                className="w-10 h-10 rounded-full bg-white/95 text-slate-700 hover:bg-slate-50 hover:text-blue-600 border border-slate-200 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer"
+                title="Zoom Out"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  // Total count for calculating reverse bottom-to-top animation delays
+  const totalActions = actions.length;
+
+  return (
+    <div ref={menuRef} className="absolute bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-center gap-2.5 z-30 select-none">
+      
+      {/* 1. Staggered Floating Circular Icons Stack (Shoots Upward Separately) */}
+      <div className="flex flex-col items-center gap-2">
+        {actions.map((action, idx) => {
+          // Calculate reverse delay so lower items pop out first from the trigger button
+          const reverseIndex = totalActions - 1 - idx;
+          const delay = isMenuOpen ? reverseIndex * 40 : idx * 30;
+
+          return (
+            <div
+              key={action.id}
+              style={{
+                transitionDelay: `${delay}ms`,
+              }}
+              className={`transition-all duration-300 ease-out transform ${
+                isMenuOpen
+                  ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+                  : 'opacity-0 translate-y-8 scale-50 pointer-events-none'
+              }`}
+            >
+              {action.node}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 2. Master 3-Line Menu Trigger Button */}
+      <button
+        onClick={() => setIsMenuOpen((prev) => !prev)}
+        className={`w-11 h-11 rounded-full shadow-2xl border flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 cursor-pointer ${
+          isMenuOpen
+            ? 'bg-slate-900 text-white border-slate-800 ring-2 ring-slate-900/30'
+            : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50'
+        }`}
+        title={isMenuOpen ? 'Close Controls Menu' : 'Open Map Controls Menu'}
+      >
+        {isMenuOpen ? (
+          <X className="w-5 h-5 transition-transform duration-300 rotate-90" />
+        ) : (
+          <Menu className="w-5 h-5 transition-transform duration-300" />
+        )}
+      </button>
+
     </div>
   );
 }
