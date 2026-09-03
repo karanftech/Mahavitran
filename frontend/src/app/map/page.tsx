@@ -277,7 +277,7 @@ function MapPageContent() {
 
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+    <div className="relative w-full h-full min-h-screen flex flex-col overflow-hidden">
       {/* Offline Sync Banner */}
       <div className="z-40">
         <OfflineSyncBanner />
@@ -371,7 +371,7 @@ export default function MapPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
         </div>
       }

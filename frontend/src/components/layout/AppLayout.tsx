@@ -13,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated } = useAuth();
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isMapPage = pathname === '/map' || pathname.startsWith('/map');
 
   // Full-Screen Mahavitaran Page Loader while initial session is verifying
   if (isLoading) {
@@ -33,11 +34,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      <Navbar />
+      {!isMapPage && <Navbar />}
       <OfflineSyncBanner />
       <div className="flex flex-1 relative overflow-hidden pb-16 md:pb-0">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto min-h-[calc(100vh-4rem)]">
+        <main className={`flex-1 overflow-y-auto ${isMapPage ? 'h-screen' : 'min-h-[calc(100vh-4rem)]'}`}>
           {children}
         </main>
       </div>

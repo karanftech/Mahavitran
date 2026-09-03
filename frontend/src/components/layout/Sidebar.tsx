@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, MapPin, Users, CreditCard, BarChart3, UserCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const isMapPage = pathname === '/map' || pathname.startsWith('/map');
 
   const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -19,7 +21,14 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-60 bg-white border-r border-slate-200 shrink-0 min-h-[calc(100vh-4rem)] p-3 text-slate-700">
+      <aside className={`hidden md:flex flex-col w-60 bg-white border-r border-slate-200 shrink-0 ${isMapPage ? 'h-screen' : 'min-h-[calc(100vh-4rem)]'} p-3 text-slate-700`}>
+        {isMapPage && (
+          <div className="pb-3 mb-2 border-b border-slate-200 px-1 pt-1">
+            <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <MahavitaranLogo size="sm" showSubtitle={true} />
+            </Link>
+          </div>
+        )}
         <div className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
