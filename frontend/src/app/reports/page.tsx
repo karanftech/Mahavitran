@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Printer, Search, ChevronDown, CheckCircle, XCircle, PhoneCall, AlertCircle, HelpCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
-import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 import { formatCurrency } from '@/utils/formatters';
 
 interface FieldVisit {
@@ -81,34 +80,24 @@ export default function ReportsPage() {
 
   return (
     <div id="printable-report" className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans bg-slate-50/50 min-h-screen">
-      {/* Header Section with Mahavitaran Branding */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-2xs">
-        <div className="flex flex-col gap-1">
-          <MahavitaranLogo size="lg" showSubtitle={true} />
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight pl-1">
-            Field Officer Performance Report
-          </h1>
-        </div>
+      {/* Top Action Bar */}
+      <div className="print:hidden flex items-center justify-end gap-3">
+        <button
+          onClick={fetchReportData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh Report</span>
+        </button>
 
-        {/* Action Buttons */}
-        <div className="print:hidden flex items-center gap-3 shrink-0">
-          <button
-            onClick={fetchReportData}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold shadow-2xs transition-all"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Report</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all"
-          >
-            <Printer className="w-3.5 h-3.5 text-slate-300" />
-            <span>Print Report</span>
-          </button>
-        </div>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
+        >
+          <Printer className="w-3.5 h-3.5 text-slate-300" />
+          <span>Print Report</span>
+        </button>
       </div>
 
       {/* Top 4 KPI Metrics Grid */}
