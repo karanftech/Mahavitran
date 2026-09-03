@@ -10,7 +10,7 @@ interface RouteDisplayProps {
   customer: Customer;
   officerCoords?: { latitude: number; longitude: number } | null;
   onStopNavigation: () => void;
-  onCollectPayment: () => void;
+  onCollectPayment: (customer?: Customer) => void;
 }
 
 export default function RouteDisplay({
@@ -126,7 +126,7 @@ export default function RouteDisplay({
         {/* Primary Action Button */}
         <div className="pt-0.5">
           <button
-            onClick={onCollectPayment}
+            onClick={() => onCollectPayment(customer)}
             className="w-full py-2.5 px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-colors text-center"
           >
             <CreditCard className="w-4 h-4" />

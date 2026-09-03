@@ -27,7 +27,7 @@ interface MapViewProps {
   streetView?: StreetViewState;
   onSelectCustomer: (customer: Customer) => void;
   onExitNavigation?: () => void;
-  onCollectPayment?: () => void;
+  onCollectPayment?: (customer?: Customer) => void;
   onOpenStreetView?: (customer: Customer) => void;
   onCloseStreetView?: () => void;
   onToggleFollow?: () => void;

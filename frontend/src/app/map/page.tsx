@@ -270,7 +270,10 @@ function MapPageContent() {
     [openStreetView]
   );
 
-  const handleCollectPaymentModalOpen = React.useCallback(() => {
+  const handleCollectPaymentModalOpen = React.useCallback((customer?: Customer) => {
+    if (customer) {
+      setSelectedCustomer(customer);
+    }
     setIsPaymentModalOpen(true);
   }, []);
 
@@ -343,7 +346,7 @@ function MapPageContent() {
           durationSeconds={durationSeconds}
           onClose={() => setSelectedCustomer(null)}
           onNavigate={handleStartSingleNavigation}
-          onCollectPayment={() => setIsPaymentModalOpen(true)}
+          onCollectPayment={handleCollectPaymentModalOpen}
           onViewStreetView={(c) => openStreetView(c.latitude, c.longitude, c.name, c.address)}
         />
       )}

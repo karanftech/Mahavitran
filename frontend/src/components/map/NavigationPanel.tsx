@@ -21,7 +21,7 @@ import { speakInstruction, stopSpeech } from '@/utils/speech';
 interface NavigationPanelProps {
   navState: NavigationState;
   onExitNavigation: () => void;
-  onCollectPayment?: () => void;
+  onCollectPayment?: (customer?: Customer) => void;
   onRecalculateRoute?: () => void;
 }
 
@@ -248,7 +248,7 @@ export default function NavigationPanel({
           {onCollectPayment && (
             <div className="px-4 py-3 border-t border-slate-700/60">
               <button
-                onClick={onCollectPayment}
+                onClick={() => onCollectPayment()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-sm font-black rounded-xl shadow-lg shadow-emerald-600/30 transition-all"
               >
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
