@@ -3,9 +3,17 @@
 let lastSpokenText = '';
 
 export const speakInstruction = (text: string, isMuted: boolean = false) => {
-  if (isMuted || !text || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     return;
   }
+
+  if (isMuted) {
+    window.speechSynthesis.cancel();
+    lastSpokenText = '';
+    return;
+  }
+
+  if (!text) return;
 
   // Prevent repeating the exact same sentence continuously
   if (text === lastSpokenText && window.speechSynthesis.speaking) {

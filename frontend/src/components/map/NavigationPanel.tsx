@@ -16,7 +16,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { NavigationState } from '@/types';
-import { speakInstruction } from '@/utils/speech';
+import { speakInstruction, stopSpeech } from '@/utils/speech';
 
 interface NavigationPanelProps {
   navState: NavigationState;
@@ -48,6 +48,19 @@ export default function NavigationPanel({
   const currentInstruction = target
     ? navState.currentStepInstruction || `Drive to consumer meter at ${target.address || target.name}`
     : '';
+
+  const handleToggleMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (next) {
+        stopSpeech();
+      } else if (currentInstruction) {
+        speakInstruction(currentInstruction, false);
+      }
+      return next;
+    });
+  };
 
   // ── ALL HOOKS BEFORE ANY CONDITIONAL RETURN ──────────────────────────────
 
@@ -94,8 +107,8 @@ export default function NavigationPanel({
           </div>
 
           <button
-            onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-            className={`p-1.5 rounded-full border transition-colors ${
+            onClick={handleToggleMute}
+            className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
               isMuted
                 ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
                 : 'bg-blue-600/30 text-sky-300 border-blue-500/40 hover:bg-blue-600/50'
@@ -167,8 +180,8 @@ export default function NavigationPanel({
           {/* Audio + Minimize */}
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setIsMuted(!isMuted)}
-              className={`p-2 rounded-xl border transition-colors ${
+              onClick={handleToggleMute}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
                 isMuted
                   ? 'bg-slate-800 text-rose-400 border-slate-700'
                   : 'bg-blue-600/30 text-sky-300 border-blue-500/40'

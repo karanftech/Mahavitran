@@ -16,7 +16,7 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { speakInstruction } from '@/utils/speech';
+import { speakInstruction, stopSpeech } from '@/utils/speech';
 
 interface MultiRouteDisplayProps {
   multiRoute: MultiRouteCalculationResult;
@@ -40,6 +40,19 @@ export default function MultiRouteDisplay({
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const prevStopRef = useRef<number>(-1);
+
+  const handleToggleMute = () => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (next) {
+        stopSpeech();
+      } else if (currentStop) {
+        const announcement = `Navigating to stop ${currentStopIndex + 1} of ${totalStops}: Consumer ${currentStop.name}, meter number ${currentStop.meter_number}.`;
+        speakInstruction(announcement, false);
+      }
+      return next;
+    });
+  };
 
   if (!multiRoute || !multiRoute.stops || multiRoute.stops.length === 0) return null;
 
@@ -113,8 +126,8 @@ export default function MultiRouteDisplay({
           </div>
 
           <button
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-1.5 rounded-full border transition-colors ${
+            onClick={handleToggleMute}
+            className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
               isMuted
                 ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
                 : 'bg-blue-600/30 text-blue-300 border-blue-500/40 hover:bg-blue-600/50'
@@ -171,8 +184,8 @@ export default function MultiRouteDisplay({
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Audio Mute/Unmute */}
           <button
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-1.5 rounded-lg border transition-colors ${
+            onClick={handleToggleMute}
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
               isMuted
                 ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
                 : 'bg-blue-600/30 text-blue-300 border-blue-500/40 hover:bg-blue-600/50'
