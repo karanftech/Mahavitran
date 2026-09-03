@@ -165,10 +165,59 @@ export default function MapView({
   officerCoordsRef.current = officerCoords;
   const onSelectCustomerRef = useRef(onSelectCustomer);
   onSelectCustomerRef.current = onSelectCustomer;
+  const onCollectPaymentRef = useRef(onCollectPayment);
+  onCollectPaymentRef.current = onCollectPayment;
   const onToggleFollowRef = useRef(onToggleFollow);
   onToggleFollowRef.current = onToggleFollow;
   const onDirectionsCalculatedRef = useRef(onDirectionsCalculated);
   onDirectionsCalculatedRef.current = onDirectionsCalculated;
+
+  // Show InfoWindow callout over marker with Collect button (Matching Image 1 sketch)
+  const showInfoWindowForCustomer = useCallback((customer: Customer, marker: any) => {
+    if (!infoWindowRef.current || !googleMapRef.current) return;
+
+    const contentHtml = `
+      <div style="padding: 10px 12px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 210px; max-width: 240px; box-sizing: border-box;">
+        <div style="margin-bottom: 6px;">
+          <h4 style="margin: 0; font-weight: 800; font-size: 13px; color: #0f172a; line-height: 1.3;">${customer.name}</h4>
+          <p style="margin: 3px 0 0; font-size: 11px; color: #64748b; font-weight: 600;">Meter: <span style="color: #0284c7; font-weight: 800;">${customer.meter_number}</span></p>
+        </div>
+
+        <div style="margin: 8px 0; padding: 6px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 8px;">
+          <span style="font-size: 10px; color: #b45309; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Pending Amount</span>
+          <p style="margin: 2px 0 0; font-size: 16px; font-weight: 900; color: #d97706;">₹${customer.pending_amount.toLocaleString('en-IN')}</p>
+        </div>
+
+        <button
+          id="map-info-collect-btn-${customer.customer_id}"
+          style="width: 100%; padding: 8px 12px; background: #059669; color: #ffffff; border: none; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.2); transition: all 0.2s;"
+          onmouseover="this.style.background='#047857'"
+          onmouseout="this.style.background='#059669'"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          Collect ₹${customer.pending_amount.toLocaleString('en-IN')}
+        </button>
+      </div>
+    `;
+
+    infoWindowRef.current.setContent(contentHtml);
+    infoWindowRef.current.open(googleMapRef.current, marker);
+
+    const google = (window as any).google;
+    if (google?.maps?.event) {
+      google.maps.event.addListenerOnce(infoWindowRef.current, 'domready', () => {
+        const btn = document.getElementById(`map-info-collect-btn-${customer.customer_id}`);
+        if (btn) {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            if (onCollectPaymentRef.current) {
+              onCollectPaymentRef.current(customer);
+            }
+          };
+        }
+      });
+    }
+  }, []);
 
   // FIX: Keep initGoogleMap in a ref so the async script callback always
   // calls the LATEST version, not a stale closure captured at script-append time.
@@ -598,22 +647,22 @@ export default function MapView({
 
         marker.addListener('click', () => {
           onSelectCustomerRef.current(customer);
-          if (infoWindowRef.current) {
-            infoWindowRef.current.setContent(`
-              <div style="padding:8px;color:#0f172a;font-family:sans-serif;max-width:200px;">
-                <h4 style="margin:0 0 4px;font-weight:bold;font-size:13px;">${customer.name}</h4>
-                <p style="margin:0 0 2px;font-size:11px;color:#64748b;">Meter: <b>${customer.meter_number}</b></p>
-                <p style="margin:0;font-size:14px;font-weight:900;color:#d97706;">₹${customer.pending_amount.toLocaleString('en-IN')}</p>
-              </div>
-            `);
-            infoWindowRef.current.open(googleMapRef.current, marker);
-          }
+          showInfoWindowForCustomer(customer, marker);
         });
 
         customerMarkersRef.current.set(customer.customer_id, marker);
       }
     });
-  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex]);
+  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer]);
+
+  // Automatically open InfoWindow popup callout when selectedCustomer changes
+  useEffect(() => {
+    if (!selectedCustomer || mapEngine !== 'google' || !googleMapRef.current) return;
+    const marker = customerMarkersRef.current.get(selectedCustomer.customer_id);
+    if (marker) {
+      showInfoWindowForCustomer(selectedCustomer, marker);
+    }
+  }, [selectedCustomer, mapEngine, showInfoWindowForCustomer]);
 
   // ── 8. Leaflet Fallback: Officer + Customers + Route ─────────────────────────
   useEffect(() => {

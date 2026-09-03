@@ -36,7 +36,7 @@ export default function MultiRouteDisplay({
   onCollectPaymentForStop,
 }: MultiRouteDisplayProps) {
   const [showStopsList, setShowStopsList] = useState<boolean>(false);
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [isMinimized, setIsMinimized] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const prevStopRef = useRef<number>(-1);
@@ -100,11 +100,11 @@ export default function MultiRouteDisplay({
     }
   };
 
-  // Minimized Small Icon View
+  // Minimized / Compact Pill Bar View (Image 1 style with distance and time)
   if (isMinimized) {
     return (
-      <div className="fixed top-4 left-4 z-40 animate-fade-in">
-        <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-full px-3.5 py-2 shadow-2xl flex items-center gap-3 text-white">
+      <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-40 animate-fade-in">
+        <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-full px-3.5 py-2 shadow-2xl flex items-center justify-between sm:justify-start gap-3 text-white">
           <button
             onClick={() => setIsMinimized(false)}
             className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-xs hover:bg-blue-500 transition-colors"
@@ -115,45 +115,51 @@ export default function MultiRouteDisplay({
 
           <div
             onClick={() => setIsMinimized(false)}
-            className="cursor-pointer flex items-center gap-2"
+            className="cursor-pointer flex items-center gap-2 min-w-0"
           >
-            <span className="font-extrabold text-sm text-blue-400">
+            <span className="font-extrabold text-sm text-blue-400 whitespace-nowrap">
               Stop {currentStopIndex + 1}/{totalStops}
             </span>
-            <span className="text-xs text-slate-300 font-semibold line-clamp-1 max-w-[120px]">
+            <span className="text-xs text-slate-300 font-semibold truncate max-w-[120px]">
               ({currentStop.name})
+            </span>
+            <span className="hidden sm:inline-block text-xs text-slate-400 font-medium whitespace-nowrap border-l border-slate-700 pl-2">
+              {multiRoute.total_distance_text} • {multiRoute.total_duration_text}
             </span>
           </div>
 
-          <button
-            onClick={handleToggleMute}
-            className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
-              isMuted
-                ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
-                : 'bg-blue-600/30 text-blue-300 border-blue-500/40 hover:bg-blue-600/50'
-            }`}
-            title={isMuted ? 'Unmute Audio Guidance' : 'Mute Audio Guidance'}
-          >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            <button
+              onClick={handleToggleMute}
+              className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                isMuted
+                  ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
+                  : 'bg-blue-600/30 text-blue-300 border-blue-500/40 hover:bg-blue-600/50'
+              }`}
+              title={isMuted ? 'Unmute Audio Guidance' : 'Mute Audio Guidance'}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
 
-          <button
-            onClick={() => setIsMinimized(false)}
-            className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
-            title="Expand Navigation Control"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
+            {/* Red STOP / Exit Navigation Button */}
+            <button
+              onClick={onStopNavigation}
+              className="p-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center"
+              title="Stop Route Navigation"
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Expanded Minimal Top Bar View
+  // Expanded Minimal Top Bar View (Image 1 style with distance & time, NO collect button)
   return (
     <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-xl z-40 space-y-2">
       {/* Sleek Minimal Floating Navigation Top Bar */}
-      <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-xl px-4 py-2.5 shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl px-4 py-2.5 shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Left: Route Summary & Active Stop */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-xs">
@@ -180,7 +186,7 @@ export default function MultiRouteDisplay({
           </div>
         </div>
 
-        {/* Right: Controls & Actions */}
+        {/* Right: Controls & Actions (NO Collect Button) */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Audio Mute/Unmute */}
           <button
@@ -214,16 +220,6 @@ export default function MultiRouteDisplay({
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
-
-          {/* Quick Collect Button */}
-          <button
-            onClick={() => onCollectPaymentForStop(activeCustomer)}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
-            title="Collect Payment"
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Collect</span> {formatCurrency(currentStop.pending_amount)}
-          </button>
 
           {/* Toggle Stops Drawer */}
           <button

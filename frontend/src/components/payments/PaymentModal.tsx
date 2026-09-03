@@ -27,17 +27,23 @@ export default function PaymentModal({
   const { isOnline, refreshQueueCount } = useOffline();
 
   const [collectedAmount, setCollectedAmount] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'online' | 'other'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi_online' | 'cheque' | 'other'>('cash');
   const [transactionRef, setTransactionRef] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!customer) return null;
+  // Pre-fill collected amount with customer's pending amount by default
+  React.useEffect(() => {
+    if (customer && isOpen) {
+      setCollectedAmount(customer.pending_amount.toString());
+      setError(null);
+      setTransactionRef('');
+      setRemarks('');
+    }
+  }, [customer, isOpen]);
 
-  const handleFullAmountClick = () => {
-    setCollectedAmount(customer.pending_amount.toString());
-  };
+  if (!customer) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +60,8 @@ export default function PaymentModal({
       return;
     }
 
-    if (paymentMethod !== 'cash' && !transactionRef.trim()) {
-      setError(`Transaction reference number is required for ${paymentMethod.toUpperCase()} payments.`);
+    if (paymentMethod === 'cheque' && !transactionRef.trim()) {
+      setError('Cheque number / reference is required for CHEQUE payments.');
       return;
     }
 
@@ -89,8 +95,8 @@ export default function PaymentModal({
           officer_id: customer.assigned_officer_id || 'OFF-1001',
           officer_name: 'Field Officer (Offline Queue)',
           amount: amt,
-          payment_method: paymentMethod,
-          transaction_reference: transactionRef || 'Queued Offline',
+          payment_method: paymentMethod === 'upi_online' ? 'UPI/ONLINE' : paymentMethod.toUpperCase(),
+          transaction_reference: transactionRef || 'N/A',
           remarks: remarks || 'Collected in offline mode',
           previous_pending_amount: customer.pending_amount,
           remaining_pending_amount: Math.max(0, customer.pending_amount - amt),
@@ -114,6 +120,13 @@ export default function PaymentModal({
       setError(msg);
     }
   };
+
+  const paymentMethodsList = [
+    { key: 'cash', label: 'CASH' },
+    { key: 'upi_online', label: 'UPI/ONLINE' },
+    { key: 'cheque', label: 'CHEQUE' },
+    { key: 'other', label: 'OTHER' },
+  ] as const;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Collect Electricity Bill">
@@ -143,16 +156,7 @@ export default function PaymentModal({
 
         {/* Amount Collected Input */}
         <div>
-          <div className="flex justify-between items-center mb-1">
-            <label className="font-semibold text-slate-700">Amount Collected (₹) *</label>
-            <button
-              type="button"
-              onClick={handleFullAmountClick}
-              className="text-blue-600 hover:text-blue-800 font-semibold underline"
-            >
-              Collect Full (₹{customer.pending_amount})
-            </button>
-          </div>
+          <label className="font-semibold text-slate-700 block mb-1">Amount Collected (₹) *</label>
           <input
             type="number"
             step="0.01"
@@ -168,36 +172,36 @@ export default function PaymentModal({
         <div>
           <label className="font-semibold text-slate-700 block mb-1.5">Payment Method *</label>
           <div className="grid grid-cols-4 gap-2">
-            {(['cash', 'upi', 'online', 'other'] as const).map((method) => (
+            {paymentMethodsList.map((method) => (
               <button
-                key={method}
+                key={method.key}
                 type="button"
-                onClick={() => setPaymentMethod(method)}
-                className={`py-1.5 px-1 rounded-md font-semibold uppercase transition-colors border ${
-                  paymentMethod === method
+                onClick={() => setPaymentMethod(method.key)}
+                className={`py-2 px-1 rounded-md font-extrabold text-[11px] uppercase transition-colors border cursor-pointer ${
+                  paymentMethod === method.key
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                {method}
+                {method.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Transaction Reference (For UPI / Online / Other) */}
-        {paymentMethod !== 'cash' && (
+        {/* Transaction / Cheque Reference (Only for Cheque or Other) */}
+        {(paymentMethod === 'cheque' || paymentMethod === 'other') && (
           <div>
             <label className="font-semibold text-slate-700 block mb-1">
-              Transaction Reference / UTR Number *
+              {paymentMethod === 'cheque' ? 'Cheque Number / Bank Ref *' : 'Transaction Reference / Details'}
             </label>
             <input
               type="text"
               value={transactionRef}
               onChange={(e) => setTransactionRef(e.target.value)}
-              placeholder="e.g. UPI/123456789012"
+              placeholder={paymentMethod === 'cheque' ? 'Enter cheque number & bank name' : 'Optional transaction reference'}
               className="w-full bg-white border border-slate-300 text-slate-900 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
+              required={paymentMethod === 'cheque'}
             />
           </div>
         )}
