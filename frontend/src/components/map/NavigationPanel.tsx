@@ -55,8 +55,8 @@ export default function NavigationPanel({
       const next = !prev;
       if (next) {
         stopSpeech();
-      } else if (currentInstruction) {
-        speakInstruction(currentInstruction, false);
+      } else if (target?.name) {
+        speakInstruction(target.name, false);
       }
       return next;
     });
@@ -64,14 +64,15 @@ export default function NavigationPanel({
 
   // ── ALL HOOKS BEFORE ANY CONDITIONAL RETURN ──────────────────────────────
 
-  // Audio: announce turn instructions when they change
+  // Audio: speak ONLY customer name when navigation starts
+  const prevCustomerNameRef = useRef<string>('');
   useEffect(() => {
-    if (!navState.active || !currentInstruction) return;
-    if (currentInstruction !== prevInstructionRef.current) {
-      prevInstructionRef.current = currentInstruction;
-      speakInstruction(currentInstruction, isMuted);
+    if (!navState.active || !target?.name) return;
+    if (target.name !== prevCustomerNameRef.current) {
+      prevCustomerNameRef.current = target.name;
+      speakInstruction(target.name, isMuted);
     }
-  }, [currentInstruction, navState.active, isMuted]);
+  }, [target?.name, navState.active, isMuted]);
 
   // Audio: announce off-route alert
   useEffect(() => {

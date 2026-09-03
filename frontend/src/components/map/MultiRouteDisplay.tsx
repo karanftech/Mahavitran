@@ -47,7 +47,7 @@ export default function MultiRouteDisplay({
       if (next) {
         stopSpeech();
       } else if (currentStop) {
-        const announcement = `Navigating to stop ${currentStopIndex + 1} of ${totalStops}: Consumer ${currentStop.name}, meter number ${currentStop.meter_number}.`;
+        const announcement = currentStop.name;
         speakInstruction(announcement, false);
       }
       return next;
@@ -79,14 +79,14 @@ export default function MultiRouteDisplay({
     .slice(currentStopIndex)
     .reduce((sum, s) => sum + s.pending_amount, 0);
 
-  // Audio voice navigation when changing stops
+  // Audio voice navigation: speak ONLY customer name on stop change/start
   useEffect(() => {
     if (prevStopRef.current !== currentStopIndex && currentStop) {
       prevStopRef.current = currentStopIndex;
-      const announcement = `Navigating to stop ${currentStopIndex + 1} of ${totalStops}: Consumer ${currentStop.name}, meter number ${currentStop.meter_number}.`;
+      const announcement = currentStop.name;
       speakInstruction(announcement, isMuted);
     }
-  }, [currentStopIndex, currentStop, totalStops, isMuted]);
+  }, [currentStopIndex, currentStop, isMuted]);
 
   const handleNext = () => {
     if (currentStopIndex < totalStops - 1) {
