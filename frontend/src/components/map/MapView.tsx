@@ -14,6 +14,7 @@ import { createOfficerMarkerIcon } from '@/components/map/OfficerMarker';
 import MapControls from '@/components/map/MapControls';
 import NavigationPanel from '@/components/map/NavigationPanel';
 import StreetViewModal from '@/components/map/StreetViewModal';
+import { speakInstruction, stopSpeech } from '@/utils/speech';
 
 interface MapViewProps {
   customers: Customer[];
@@ -31,7 +32,9 @@ interface MapViewProps {
   onOpenStreetView?: (customer: Customer) => void;
   onCloseStreetView?: () => void;
   onToggleFollow?: () => void;
+  onDisableFollow?: () => void;
   onDirectionsCalculated?: (result: RouteCalculationResult) => void;
+  onSelectStopIndex?: (index: number) => void;
 }
 
 // ─── Marker icon helpers ──────────────────────────────────────────────────────
@@ -125,7 +128,9 @@ export default function MapView({
   onOpenStreetView,
   onCloseStreetView,
   onToggleFollow,
+  onDisableFollow,
   onDirectionsCalculated,
+  onSelectStopIndex,
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +161,14 @@ export default function MapView({
   const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(false);
   const [is3D, setIs3D] = useState<boolean>(false);
   const [mapHeading, setMapHeading] = useState<number>(officerHeading || 0);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  const handleToggleMute = () => {
+    setIsMuted((prev) => {
+      if (!prev) stopSpeech();
+      return !prev;
+    });
+  };
 
   const isFollowing = navState?.isFollowing ?? isFollowingInternal;
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -169,6 +182,8 @@ export default function MapView({
   onCollectPaymentRef.current = onCollectPayment;
   const onToggleFollowRef = useRef(onToggleFollow);
   onToggleFollowRef.current = onToggleFollow;
+  const onDisableFollowRef = useRef(onDisableFollow);
+  onDisableFollowRef.current = onDisableFollow;
   const onDirectionsCalculatedRef = useRef(onDirectionsCalculated);
   onDirectionsCalculatedRef.current = onDirectionsCalculated;
 
@@ -227,6 +242,7 @@ export default function MapView({
   useEffect(() => {
     if (navState?.active) {
       setIsFollowingInternal(true);
+      setIsMuted(false); // Always start with audio ON when navigation begins
     } else {
       // Reset 3D view when navigation ends without forcing zoom level reset
       if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
@@ -239,11 +255,10 @@ export default function MapView({
 
   // ── disableFollowMode (stable) ───────────────────────────────────────────────
   const disableFollowMode = useCallback(() => {
-    if (onToggleFollowRef.current) {
-      onToggleFollowRef.current();
-    } else {
-      setIsFollowingInternal(false);
+    if (onDisableFollowRef.current) {
+      onDisableFollowRef.current();
     }
+    setIsFollowingInternal(false);
   }, []);
 
   // ── 1. Init Leaflet fallback ─────────────────────────────────────────────────
@@ -322,6 +337,7 @@ export default function MapView({
     directionsRendererRef.current = new google.maps.DirectionsRenderer({
       map: googleMapRef.current,
       suppressMarkers: true,
+      preserveViewport: true,
       polylineOptions: {
         strokeColor: '#0284c7',
         strokeWeight: 6,
@@ -341,8 +357,9 @@ export default function MapView({
       setIs3D(t > 0);
     });
 
-    // Only disable follow on user drag
+    // Only disable follow on user drag or zoom
     googleMapRef.current.addListener('dragstart', () => disableFollowMode());
+    googleMapRef.current.addListener('zoom_changed', () => disableFollowMode());
 
     setMapEngine('google');
   }, [disableFollowMode]);
@@ -647,22 +664,15 @@ export default function MapView({
 
         marker.addListener('click', () => {
           onSelectCustomerRef.current(customer);
-          showInfoWindowForCustomer(customer, marker);
+          speakInstruction(customer.name, false);
         });
 
         customerMarkersRef.current.set(customer.customer_id, marker);
       }
     });
-  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer]);
+  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex]);
 
-  // Automatically open InfoWindow popup callout when selectedCustomer changes
-  useEffect(() => {
-    if (!selectedCustomer || mapEngine !== 'google' || !googleMapRef.current) return;
-    const marker = customerMarkersRef.current.get(selectedCustomer.customer_id);
-    if (marker) {
-      showInfoWindowForCustomer(selectedCustomer, marker);
-    }
-  }, [selectedCustomer, mapEngine, showInfoWindowForCustomer]);
+
 
   // ── 8. Leaflet Fallback: Officer + Customers + Route ─────────────────────────
   useEffect(() => {
@@ -692,7 +702,10 @@ export default function MapView({
         color: '#fff', weight: 2, fillOpacity: 1,
       }).addTo(leafletMapRef.current);
       marker.bindTooltip(`<b>${customer.meter_number}</b>`, { permanent: true, direction: 'top' });
-      marker.on('click', () => onSelectCustomerRef.current(customer));
+      marker.on('click', () => {
+        onSelectCustomerRef.current(customer);
+        speakInstruction(customer.name, false);
+      });
       leafletMarkersRef.current.set(customer.customer_id, marker);
     });
 
@@ -830,6 +843,11 @@ export default function MapView({
           navState={navState}
           onExitNavigation={onExitNavigation || (() => {})}
           onCollectPayment={onCollectPayment}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+          multiRoute={multiRoute}
+          currentStopIndex={activeStopIndex}
+          onSelectStopIndex={onSelectStopIndex}
         />
       )}
 
@@ -851,6 +869,8 @@ export default function MapView({
         }
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
+        isMuted={isMuted}
+        onToggleMute={handleToggleMute}
       />
 
       {/* 360° Street View Modal */}

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Customer, Coordinates, RouteCalculationResult } from '@/types';
 import { calculateHaversineDistance } from '@/utils/geo';
 import { routeService } from '@/services/routeService';
+import { speakInstruction } from '@/utils/speech';
 
 interface UseNavigationOptions {
   offRouteThresholdMeters?: number;
@@ -30,6 +31,10 @@ export function useNavigation(options: UseNavigationOptions = {}) {
       setIsFollowing(true);
       setCurrentStepIndex(0);
       setIsOffRoute(false);
+
+      // Speak customer name immediately — called inside a user-gesture handler
+      // so browsers allow speech synthesis without autoplay restrictions.
+      speakInstruction(`Navigating to ${customer.name}`, false);
 
       if (!officerCoords) return;
 
@@ -141,6 +146,10 @@ export function useNavigation(options: UseNavigationOptions = {}) {
     setIsFollowing((prev) => !prev);
   }, []);
 
+  const disableFollow = useCallback(() => {
+    setIsFollowing(false);
+  }, []);
+
   return {
     isNavigating,
     targetCustomer,
@@ -154,6 +163,7 @@ export function useNavigation(options: UseNavigationOptions = {}) {
     recalculateRoute,
     updateOfficerPosition,
     toggleFollow,
+    disableFollow,
     setIsFollowing,
   };
 }

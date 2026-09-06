@@ -2,17 +2,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, Navigation, Loader2, Square, Check, X, Calendar, DollarSign, Users } from 'lucide-react';
-import { MapFilterState } from '@/types';
+import { MapFilterState, Customer } from '@/types';
 
 interface MapFiltersProps {
   filters: MapFilterState;
   onFilterChange: (newFilters: MapFilterState) => void;
   customerCounts?: { all: number; pending: number; overdue: number; paid: number };
   onNavigateAll?: () => void;
+  onNavigateSelected?: () => void;
   onStopNavigation?: () => void;
   isNavigating?: boolean;
   isCalculatingMultiRoute?: boolean;
   filteredCount?: number;
+  selectedCustomer?: Customer | null;
 }
 
 export default function MapFilters({
@@ -20,10 +22,12 @@ export default function MapFilters({
   onFilterChange,
   customerCounts,
   onNavigateAll,
+  onNavigateSelected,
   onStopNavigation,
   isNavigating = false,
   isCalculatingMultiRoute = false,
   filteredCount,
+  selectedCustomer,
 }: MapFiltersProps) {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -84,8 +88,8 @@ export default function MapFilters({
 
         {/* Right Action Icons Group */}
         <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-slate-200">
-          
-          {/* 1. Filter Icon Button */}
+
+          {/* Filter Icon Button */}
           <button
             onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
             className={`p-2 rounded-full transition-all cursor-pointer flex items-center justify-center relative ${
@@ -93,7 +97,7 @@ export default function MapFilters({
                 ? 'bg-blue-50 text-blue-600 border border-blue-200'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
             }`}
-            title="Filter Customers (All, Pending Amt, No. of Days)"
+            title="Filter Customers"
           >
             <Filter className="w-4 h-4" />
             {filters.status !== 'all' && (
@@ -101,33 +105,40 @@ export default function MapFilters({
             )}
           </button>
 
-          {/* 2. Start / Stop Route Icon Button */}
+          {/* Single merged corner button:
+              - Navigating → red stop button
+              - Customer selected → blue nav icon (navigate to that customer)
+              - No selection → blue nav icon (navigate all / multi-route) */}
           {isNavigating ? (
-            /* Circular Red STOP Icon Button when navigation is active */
             <button
               onClick={onStopNavigation}
               className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
-              title="Stop Route Navigation"
+              title="Stop Navigation"
             >
               <Square className="w-3.5 h-3.5 fill-white stroke-none" />
             </button>
-          ) : (
-            /* Circular Blue Start Navigation Icon Button when idle */
-            onNavigateAll && (
-              <button
-                onClick={onNavigateAll}
-                disabled={isCalculatingMultiRoute || filteredCount === 0}
-                className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                title="Start Route Navigation"
-              >
-                {isCalculatingMultiRoute ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                ) : (
-                  <Navigation className="w-4 h-4 fill-white stroke-none" />
-                )}
-              </button>
-            )
-          )}
+          ) : selectedCustomer && onNavigateSelected ? (
+            <button
+              onClick={onNavigateSelected}
+              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+              title={`Start Navigation to ${selectedCustomer.name}`}
+            >
+              <Navigation className="w-4 h-4 fill-white stroke-none" />
+            </button>
+          ) : onNavigateAll ? (
+            <button
+              onClick={onNavigateAll}
+              disabled={isCalculatingMultiRoute || filteredCount === 0}
+              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              title="Start Route Navigation"
+            >
+              {isCalculatingMultiRoute ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Navigation className="w-4 h-4 fill-white stroke-none" />
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
 

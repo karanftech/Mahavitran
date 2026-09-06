@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Crosshair, Layers, Maximize2, Eye, Plus, Minus, Check, Menu, X } from 'lucide-react';
+import { Crosshair, Layers, Maximize2, Eye, Plus, Minus, Check, Menu, X, Volume2, VolumeX } from 'lucide-react';
 import { MapLayerType } from '@/types';
 
 interface MapControlsProps {
@@ -9,6 +9,8 @@ interface MapControlsProps {
   isFollowing: boolean;
   is3D?: boolean;
   officerHeading?: number | null;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
   onToggleFollow: () => void;
   onSelectLayer: (layer: MapLayerType) => void;
   onFitBounds: () => void;
@@ -22,6 +24,8 @@ interface MapControlsProps {
 export default function MapControls({
   currentLayer,
   isFollowing,
+  isMuted,
+  onToggleMute,
   onToggleFollow,
   onSelectLayer,
   onFitBounds,
@@ -128,6 +132,26 @@ export default function MapControls({
         </button>
       ),
     },
+    ...(onToggleMute
+      ? [
+          {
+            id: 'mute',
+            node: (
+              <button
+                onClick={onToggleMute}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer shadow-lg border ${
+                  isMuted
+                    ? 'bg-white/95 text-rose-500 border-slate-200 hover:bg-slate-50'
+                    : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+                }`}
+                title={isMuted ? 'Unmute Navigation Audio' : 'Mute Navigation Audio'}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            ),
+          },
+        ]
+      : []),
     ...(onOpenStreetView
       ? [
           {
@@ -182,7 +206,7 @@ export default function MapControls({
   const totalActions = actions.length;
 
   return (
-    <div ref={menuRef} className="absolute bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-center gap-2.5 z-[60] select-none">
+    <div ref={menuRef} className="absolute bottom-[72px] right-4 md:bottom-6 md:right-6 flex flex-col items-center gap-2.5 z-[60] select-none">
       
       {/* 1. Staggered Floating Circular Icons Stack (Shoots Upward Separately) */}
       <div className="flex flex-col items-center gap-2">

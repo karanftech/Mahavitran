@@ -4,8 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MapView from '@/components/map/MapView';
 import MapFilters from '@/components/map/MapFilters';
-import CustomerBottomSheet from '@/components/map/CustomerBottomSheet';
-import MultiRouteDisplay from '@/components/map/MultiRouteDisplay';
 import PaymentModal from '@/components/payments/PaymentModal';
 import ReceiptView from '@/components/payments/ReceiptView';
 import OfflineSyncBanner from '@/components/offline/OfflineSyncBanner';
@@ -44,6 +42,7 @@ function MapPageContent() {
     recalculateRoute,
     updateOfficerPosition,
     toggleFollow,
+    disableFollow,
   } = useNavigation({ offRouteThresholdMeters: 75 });
 
   const { streetView, openStreetView, closeStreetView } = useStreetView();
@@ -147,38 +146,36 @@ function MapPageContent() {
     return { distanceMeters: dist, durationSeconds: durSec };
   }, [selectedCustomer, officerCoords]);
 
-  // Single Navigation Trigger Handler
+  // Navigate Single Customer — starts navigation to a specific customer
   const handleStartSingleNavigation = (customer: Customer) => {
     if (isMultiNavigating) handleStopMultiNavigation();
     setSelectedCustomer(customer);
-    startNavigation(customer, officerCoords);
+    const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
+    startNavigation(customer, effectiveCoords);
   };
 
-  // Multi-Stop Navigation Trigger Handler
+  // Navigate All — starts multi-stop route navigation connecting all meters at once
   const handleStartMultiNavigation = async () => {
     if (filteredCustomers.length === 0) return;
+    const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
     setIsCalculatingMultiRoute(true);
-
-    const origin = officerCoords || {
-      latitude: filteredCustomers[0].latitude,
-      longitude: filteredCustomers[0].longitude,
-    };
-
     try {
-      const res = await routeService.calculateMultiRoute(origin, filteredCustomers);
+      const res = await routeService.calculateMultiRoute(effectiveCoords, filteredCustomers);
       setMultiRoute(res);
-      setCurrentStopIndex(0);
       setIsMultiNavigating(true);
+      setCurrentStopIndex(0);
 
-      // Stop single route if active
-      stopNavigation();
-
-      if (res.stops.length > 0) {
-        const firstCust = allCustomers.find((c) => c.customer_id === res.stops[0].customer_id);
-        if (firstCust) setSelectedCustomer(firstCust);
+      if (res.stops && res.stops.length > 0) {
+        const firstStopId = res.stops[0].customer_id;
+        const firstCust = allCustomers.find((c) => c.customer_id === firstStopId) || filteredCustomers[0];
+        setSelectedCustomer(firstCust);
+        startNavigation(firstCust, effectiveCoords);
       }
     } catch (err) {
-      console.error('Failed to calculate multi-meter shortest route', err);
+      console.error('Failed to calculate multi-route:', err);
+      if (filteredCustomers[0]) {
+        startNavigation(filteredCustomers[0], effectiveCoords);
+      }
     } finally {
       setIsCalculatingMultiRoute(false);
     }
@@ -188,6 +185,7 @@ function MapPageContent() {
     setIsMultiNavigating(false);
     setMultiRoute(null);
     setCurrentStopIndex(0);
+    stopNavigation();
   };
 
   const handleSelectStopIndex = (index: number) => {
@@ -195,7 +193,10 @@ function MapPageContent() {
     setCurrentStopIndex(index);
     const stop = multiRoute.stops[index];
     const found = allCustomers.find((c) => c.customer_id === stop.customer_id);
-    if (found) setSelectedCustomer(found);
+    if (found) {
+      setSelectedCustomer(found);
+      if (officerCoords) startNavigation(found, officerCoords);
+    }
   };
 
   // Payment Collection Success Callback
@@ -286,24 +287,30 @@ function MapPageContent() {
         <OfflineSyncBanner />
       </div>
 
-      {/* Top Map Search & Filter Bar (Floating Google Maps Pill UI) */}
-      <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
-        <MapFilters
-          filters={filters}
-          onFilterChange={setFilters}
-          customerCounts={counts}
-          onNavigateAll={handleStartMultiNavigation}
-          onStopNavigation={isMultiNavigating ? handleStopMultiNavigation : stopNavigation}
-          isNavigating={isNavigating || isMultiNavigating}
-          isCalculatingMultiRoute={isCalculatingMultiRoute}
-          filteredCount={filteredCustomers.length}
-        />
-      </div>
+      {/* Top Map Search & Filter Bar — Hidden during active navigation */}
+      {!isNavigating && !isMultiNavigating && (
+        <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
+          <MapFilters
+            filters={filters}
+            onFilterChange={setFilters}
+            customerCounts={counts}
+            selectedCustomer={selectedCustomer}
+            onNavigateSelected={
+              selectedCustomer ? () => handleStartSingleNavigation(selectedCustomer) : undefined
+            }
+            onNavigateAll={handleStartMultiNavigation}
+            onStopNavigation={handleStopMultiNavigation}
+            isNavigating={false}
+            isCalculatingMultiRoute={isCalculatingMultiRoute}
+            filteredCount={filteredCustomers.length}
+          />
+        </div>
+      )}
 
       {/* Main Interactive Map Canvas */}
       <div className="w-full h-full">
         <MapView
-          customers={filteredCustomers}
+          customers={isNavigating && navTargetCustomer && !isMultiNavigating ? [navTargetCustomer] : filteredCustomers}
           officerCoords={officerCoords}
           officerHeading={officerHeading}
           selectedCustomer={selectedCustomer}
@@ -313,43 +320,16 @@ function MapPageContent() {
           navState={navStateObj}
           streetView={streetView}
           onSelectCustomer={handleSelectMapCustomer}
-          onExitNavigation={stopNavigation}
+          onExitNavigation={handleStopMultiNavigation}
           onCollectPayment={handleCollectPaymentModalOpen}
           onOpenStreetView={handleOpenCustomerStreetView}
           onCloseStreetView={closeStreetView}
           onToggleFollow={toggleFollow}
+          onDisableFollow={disableFollow}
           onDirectionsCalculated={setNavigationRoute}
+          onSelectStopIndex={handleSelectStopIndex}
         />
       </div>
-
-      {/* Multi-Stop Shortest Path Navigation Display */}
-      {isMultiNavigating && multiRoute && (
-        <MultiRouteDisplay
-          multiRoute={multiRoute}
-          currentStopIndex={currentStopIndex}
-          allCustomers={allCustomers}
-          onSelectStopIndex={handleSelectStopIndex}
-          onStopNavigation={handleStopMultiNavigation}
-          onCollectPaymentForStop={(cust) => {
-            setSelectedCustomer(cust);
-            setIsPaymentModalOpen(true);
-          }}
-        />
-      )}
-
-      {/* Selected Customer Bottom Card (shown when pin clicked and not navigating) */}
-      {!isNavigating && !isMultiNavigating && selectedCustomer && (
-        <CustomerBottomSheet
-          customer={selectedCustomer}
-          officerCoords={officerCoords}
-          distanceMeters={distanceMeters}
-          durationSeconds={durationSeconds}
-          onClose={() => setSelectedCustomer(null)}
-          onNavigate={handleStartSingleNavigation}
-          onCollectPayment={handleCollectPaymentModalOpen}
-          onViewStreetView={(c) => openStreetView(c.latitude, c.longitude, c.name, c.address)}
-        />
-      )}
 
       {/* Payment Collection Modal */}
       <PaymentModal
