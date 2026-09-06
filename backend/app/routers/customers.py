@@ -156,8 +156,10 @@ async def create_customer(
         "longitude": request.longitude,
         "location": location,
         "meter_number": request.meter_number,
-        "pending_amount": 0.0,
-        "status": "paid",
+        "pending_amount": float(request.pending_amount) if request.pending_amount is not None else 0.0,
+        "due_date": request.due_date,
+        "status": request.status or ("overdue" if (request.pending_amount or 0) > 3000 else ("pending" if (request.pending_amount or 0) > 0 else "paid")),
+        "priority": request.priority or ("high" if (request.pending_amount or 0) > 5000 else "normal"),
         "assigned_officer_id": request.assigned_officer_id,
         "created_at": now_str,
         "updated_at": now_str
@@ -187,8 +189,10 @@ async def create_customer(
         area=request.area,
         latitude=request.latitude,
         longitude=request.longitude,
-        pending_amount=0.0,
-        status="paid",
+        pending_amount=customer_doc["pending_amount"],
+        due_date=customer_doc["due_date"],
+        status=customer_doc["status"],
+        priority=customer_doc["priority"],
         assigned_officer_id=request.assigned_officer_id,
         meters=[
             MeterSchema(

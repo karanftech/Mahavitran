@@ -14,6 +14,7 @@ import { createOfficerMarkerIcon } from '@/components/map/OfficerMarker';
 import MapControls from '@/components/map/MapControls';
 import NavigationPanel from '@/components/map/NavigationPanel';
 import StreetViewModal from '@/components/map/StreetViewModal';
+import { X, CheckCircle2 } from 'lucide-react';
 import { speakInstruction, stopSpeech } from '@/utils/speech';
 
 interface MapViewProps {
@@ -187,30 +188,30 @@ export default function MapView({
   const onDirectionsCalculatedRef = useRef(onDirectionsCalculated);
   onDirectionsCalculatedRef.current = onDirectionsCalculated;
 
-  // Show InfoWindow callout over marker with Collect button (Matching Image 1 sketch)
+  // Compact InfoWindow callout over marker with Name, Meter No, Amt & Collect button
   const showInfoWindowForCustomer = useCallback((customer: Customer, marker: any) => {
     if (!infoWindowRef.current || !googleMapRef.current) return;
 
     const contentHtml = `
-      <div style="padding: 10px 12px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 210px; max-width: 240px; box-sizing: border-box;">
-        <div style="margin-bottom: 6px;">
-          <h4 style="margin: 0; font-weight: 800; font-size: 13px; color: #0f172a; line-height: 1.3;">${customer.name}</h4>
-          <p style="margin: 3px 0 0; font-size: 11px; color: #64748b; font-weight: 600;">Meter: <span style="color: #0284c7; font-weight: 800;">${customer.meter_number}</span></p>
+      <div style="padding: 2px 4px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 190px; max-width: 220px; box-sizing: border-box;">
+        <div style="padding-right: 16px; margin-bottom: 2px;">
+          <h4 style="margin: 0; font-weight: 800; font-size: 12px; color: #0f172a; line-height: 1.2;">${customer.name}</h4>
+          <p style="margin: 2px 0 0; font-size: 10.5px; color: #64748b; font-weight: 600;">Meter: <span style="color: #0284c7; font-weight: 800; font-family: monospace;">${customer.meter_number}</span></p>
         </div>
 
-        <div style="margin: 8px 0; padding: 6px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 8px;">
-          <span style="font-size: 10px; color: #b45309; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Pending Amount</span>
-          <p style="margin: 2px 0 0; font-size: 16px; font-weight: 900; color: #d97706;">₹${customer.pending_amount.toLocaleString('en-IN')}</p>
+        <div style="margin: 4px 0 6px; padding: 4px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 9.5px; color: #b45309; font-weight: 800; text-transform: uppercase;">Amt for Pay Now</span>
+          <span style="font-size: 12.5px; font-weight: 900; color: #d97706;">₹${customer.pending_amount.toLocaleString('en-IN')}</span>
         </div>
 
         <button
           id="map-info-collect-btn-${customer.customer_id}"
-          style="width: 100%; padding: 8px 12px; background: #059669; color: #ffffff; border: none; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.2); transition: all 0.2s;"
+          style="width: 100%; padding: 6px 10px; background: #059669; color: #ffffff; border: none; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 1px 3px rgba(5,150,105,0.2); transition: all 0.2s;"
           onmouseover="this.style.background='#047857'"
           onmouseout="this.style.background='#059669'"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-          Collect ₹${customer.pending_amount.toLocaleString('en-IN')}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          <span>Collect ₹${customer.pending_amount.toLocaleString('en-IN')}</span>
         </button>
       </div>
     `;
@@ -664,13 +665,21 @@ export default function MapView({
 
         marker.addListener('click', () => {
           onSelectCustomerRef.current(customer);
+          showInfoWindowForCustomer(customer, marker);
           speakInstruction(customer.name, false);
         });
 
         customerMarkersRef.current.set(customer.customer_id, marker);
       }
     });
-  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex]);
+
+    if (selectedCustomer) {
+      const selectedMarker = customerMarkersRef.current.get(selectedCustomer.customer_id);
+      if (selectedMarker) {
+        showInfoWindowForCustomer(selectedCustomer, selectedMarker);
+      }
+    }
+  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer]);
 
 
 

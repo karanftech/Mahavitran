@@ -8,7 +8,7 @@ import { customerService } from '@/services/customerService';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import StatusBadge from '@/components/ui/Badge';
 import BulkUploadModal from '@/components/customers/BulkUploadModal';
-
+import AddCustomerModal from '@/components/customers/AddCustomerModal';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -16,6 +16,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -45,6 +46,13 @@ export default function CustomersPage() {
           <p className="text-xs text-slate-500 mt-0.5">Directory of registered consumers, electricity meters, pending balances, and field assignments.</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-md shadow-xs transition-colors cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Consumer
+          </button>
           <button
             onClick={() => setIsUploadModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-md shadow-xs transition-colors cursor-pointer"
@@ -166,6 +174,13 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {/* Add Consumer Modal */}
+      <AddCustomerModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={fetchCustomers}
+      />
 
       {/* Bulk Upload Modal */}
       <BulkUploadModal

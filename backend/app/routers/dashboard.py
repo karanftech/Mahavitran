@@ -94,14 +94,14 @@ async def get_officer_dashboard(
     except Exception as err:
         logger.error(f"Error building officer dashboard metrics: {err}")
         return OfficerDashboardMetrics(
-            total_assigned_customers=32,
-            total_pending_amount=148500.0,
-            number_of_pending_bills=28,
-            number_of_completed_collections=4,
+            total_assigned_customers=0,
+            total_pending_amount=0.0,
+            number_of_pending_bills=0,
+            number_of_completed_collections=0,
             todays_collection_target=25000.0,
-            todays_collected_amount=18400.0,
-            remaining_collections_count=24,
-            remaining_collections_amount=6600.0,
+            todays_collected_amount=0.0,
+            remaining_collections_count=0,
+            remaining_collections_amount=0.0,
             nearby_pending_customers=[]
         )
 

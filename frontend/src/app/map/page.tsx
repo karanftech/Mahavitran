@@ -21,6 +21,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useStreetView } from '@/hooks/useStreetView';
 import { calculateHaversineDistance } from '@/utils/geo';
+import { matchCustomerFilters } from '@/utils/formatters';
 
 function MapPageContent() {
   const searchParams = useSearchParams();
@@ -59,6 +60,8 @@ function MapPageContent() {
 
   const [filters, setFilters] = useState<MapFilterState>({
     status: 'all',
+    overduePeriod: 'all',
+    outstandingAmount: 'all',
     searchQuery: '',
   });
 
@@ -103,24 +106,7 @@ function MapPageContent() {
 
   // Filter Customers for Map Display
   const filteredCustomers = useMemo(() => {
-    return allCustomers.filter((c) => {
-      // 1. Status Filter
-      if (filters.status === 'pending' && c.status === 'paid') return false;
-      if (filters.status === 'overdue' && c.status !== 'overdue' && c.priority !== 'high' && c.priority !== 'critical') return false;
-      if (filters.status === 'collected' && c.status !== 'paid') return false;
-
-      // 2. Search Query
-      if (filters.searchQuery.trim()) {
-        const q = filters.searchQuery.toLowerCase();
-        const matchName = c.name.toLowerCase().includes(q);
-        const matchId = c.customer_id.toLowerCase().includes(q);
-        const matchMeter = c.meter_number.toLowerCase().includes(q);
-        const matchAddr = c.address.toLowerCase().includes(q);
-        if (!matchName && !matchId && !matchMeter && !matchAddr) return false;
-      }
-
-      return true;
-    });
+    return allCustomers.filter((c) => matchCustomerFilters(c, filters));
   }, [allCustomers, filters]);
 
   // Count aggregates for filters

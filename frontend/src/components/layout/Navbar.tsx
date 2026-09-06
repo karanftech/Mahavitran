@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Zap, LogOut, User as UserIcon } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -12,7 +12,10 @@ import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
+
+  const isAuthPage = pathname === '/login' || pathname === '/register';
 
   const handleLogout = async () => {
     await authService.logout();
@@ -26,8 +29,8 @@ export default function Navbar() {
           <MahavitaranLogo size="md" showSubtitle={true} />
         </Link>
 
-        <div className="flex items-center gap-3">
-          {user && (
+        {user && !isAuthPage && (
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full p-1 pr-3 shadow-xs">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                 <UserIcon className="w-4 h-4" />
@@ -39,17 +42,17 @@ export default function Navbar() {
                 </p>
               </div>
             </div>
-          )}
 
-          <button
-            onClick={handleLogout}
-            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex flex-col items-center justify-center gap-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-xs transition-colors cursor-pointer shrink-0"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4 text-rose-600" />
-            <span className="text-[8px] font-extrabold text-rose-700 leading-none">Logout</span>
-          </button>
-        </div>
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex flex-col items-center justify-center gap-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-xs transition-colors cursor-pointer shrink-0"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4 text-rose-600" />
+              <span className="text-[8px] font-extrabold text-rose-700 leading-none">Logout</span>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

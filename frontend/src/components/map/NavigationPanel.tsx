@@ -271,7 +271,7 @@ export default function NavigationPanel({
       </div>
 
       {/* ── BOTTOM TURN-BY-TURN CARD (Matching Photo 2) ────────────────────────── */}
-      <div className="absolute bottom-[72px] md:bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-96 z-40 animate-slide-up">
+      <div className="absolute bottom-20 md:bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-96 z-40 animate-slide-up">
         <div className="bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden">
           {/* Direction Strip */}
           <div className="flex items-stretch">

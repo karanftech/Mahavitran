@@ -173,8 +173,13 @@ export interface OfficerDashboardMetrics {
 
 
 
+export type OverduePeriodFilter = 'all' | 'less_15' | '15_30' | 'over_30' | 'over_60' | 'over_120';
+export type OutstandingAmountFilter = 'all' | 'less_500' | 'over_500' | 'over_5000' | 'over_10000';
+
 export interface MapFilterState {
-  status: 'all' | 'pending' | 'overdue' | 'high_amount' | 'due_today' | 'due_week' | 'collected';
+  status?: 'all' | 'pending' | 'overdue' | 'high_amount' | 'due_today' | 'due_week' | 'collected';
+  overduePeriod: OverduePeriodFilter;
+  outstandingAmount: OutstandingAmountFilter;
   searchQuery: string;
 }
 

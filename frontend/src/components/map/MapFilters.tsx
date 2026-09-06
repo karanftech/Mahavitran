@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Navigation, Loader2, Square, Check, X, Calendar, DollarSign, Users } from 'lucide-react';
-import { MapFilterState, Customer } from '@/types';
+import { Search, Filter, Navigation, Loader2, Square, RotateCcw } from 'lucide-react';
+import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter } from '@/types';
 
 interface MapFiltersProps {
   filters: MapFilterState;
@@ -26,7 +26,7 @@ export default function MapFilters({
   onStopNavigation,
   isNavigating = false,
   isCalculatingMultiRoute = false,
-  filteredCount,
+  filteredCount = 0,
   selectedCustomer,
 }: MapFiltersProps) {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
@@ -43,35 +43,40 @@ export default function MapFilters({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filterOptions: { key: MapFilterState['status']; label: string; icon: React.ElementType; count?: number; subtitle: string }[] = [
-    {
-      key: 'all',
-      label: 'All Customers',
-      icon: Users,
-      count: customerCounts?.all,
-      subtitle: 'Show all assigned consumer accounts',
-    },
-    {
-      key: 'pending',
-      label: 'Pending Amt',
-      icon: DollarSign,
-      count: customerCounts?.pending,
-      subtitle: 'Filter consumers with unpaid bill amounts',
-    },
-    {
-      key: 'overdue',
-      label: 'No. of Days',
-      icon: Calendar,
-      count: customerCounts?.overdue,
-      subtitle: 'Filter overdue accounts & high priority dues',
-    },
+  const overduePeriodOptions: { key: OverduePeriodFilter; label: string }[] = [
+    { key: 'all', label: 'All Days (Show All)' },
+    { key: 'less_15', label: '< 15 Days' },
+    { key: '15_30', label: '15 – 30 Days' },
+    { key: 'over_30', label: '> 30 Days Overdue' },
+    { key: 'over_60', label: '> 60 Days (Critical)' },
+    { key: 'over_120', label: '> 120 Days (Severe)' },
   ];
 
-  const currentFilterObj = filterOptions.find((f) => f.key === filters.status) || filterOptions[0];
+  const outstandingAmountOptions: { key: OutstandingAmountFilter; label: string }[] = [
+    { key: 'all', label: 'All Amounts' },
+    { key: 'less_500', label: '< ₹500' },
+    { key: 'over_500', label: '> ₹500' },
+    { key: 'over_5000', label: '> ₹5,000' },
+    { key: 'over_10000', label: '> ₹10,000 (High Value)' },
+  ];
+
+  const isFilterActive =
+    (filters.overduePeriod && filters.overduePeriod !== 'all') ||
+    (filters.outstandingAmount && filters.outstandingAmount !== 'all') ||
+    (filters.status && filters.status !== 'all');
+
+  const handleResetFilters = () => {
+    onFilterChange({
+      ...filters,
+      overduePeriod: 'all',
+      outstandingAmount: 'all',
+      status: 'all',
+    });
+  };
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      {/* Google Maps Style Single Floating Search Pill Bar */}
+      {/* Floating Search & Filter Pill Bar */}
       <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full px-4 py-2 shadow-lg flex items-center gap-3 transition-all hover:shadow-xl focus-within:ring-2 focus-within:ring-blue-500/30">
         
         {/* Search Icon */}
@@ -87,121 +92,167 @@ export default function MapFilters({
         />
 
         {/* Right Action Icons Group */}
-        <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-slate-200">
+        <div className="flex items-center gap-2 shrink-0 pl-1 border-l border-slate-200">
 
-          {/* Filter Icon Button */}
-          <button
-            onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-            className={`p-2 rounded-full transition-all cursor-pointer flex items-center justify-center relative ${
-              isFilterDropdownOpen || filters.status !== 'all'
-                ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-            title="Filter Customers"
-          >
-            <Filter className="w-4 h-4" />
-            {filters.status !== 'all' && (
-              <span className="w-2 h-2 rounded-full bg-blue-600 absolute top-1 right-1 ring-2 ring-white"></span>
-            )}
-          </button>
-
-          {/* Single merged corner button:
-              - Navigating → red stop button
-              - Customer selected → blue nav icon (navigate to that customer)
-              - No selection → blue nav icon (navigate all / multi-route) */}
-          {isNavigating ? (
+          {/* Filter Icon & Label */}
+          <div className="flex flex-col items-center gap-0.5">
             <button
-              onClick={onStopNavigation}
-              className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
-              title="Stop Navigation"
+              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+              className={`p-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center relative ${
+                isFilterDropdownOpen || isFilterActive
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              title="Filter Options"
             >
-              <Square className="w-3.5 h-3.5 fill-white stroke-none" />
-            </button>
-          ) : selectedCustomer && onNavigateSelected ? (
-            <button
-              onClick={onNavigateSelected}
-              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
-              title={`Start Navigation to ${selectedCustomer.name}`}
-            >
-              <Navigation className="w-4 h-4 fill-white stroke-none" />
-            </button>
-          ) : onNavigateAll ? (
-            <button
-              onClick={onNavigateAll}
-              disabled={isCalculatingMultiRoute || filteredCount === 0}
-              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              title="Start Route Navigation"
-            >
-              {isCalculatingMultiRoute ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <Navigation className="w-4 h-4 fill-white stroke-none" />
+              <Filter className="w-4 h-4" />
+              {isFilterActive && (
+                <span className="w-2 h-2 rounded-full bg-blue-600 absolute top-0.5 right-0.5 ring-2 ring-white"></span>
               )}
             </button>
+            <span className="text-[9px] font-bold text-slate-500 leading-none">filter</span>
+          </div>
+
+          {/* Navigation Action Button */}
+          {isNavigating ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={onStopNavigation}
+                className="w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+                title="Stop Navigation"
+              >
+                <Square className="w-3 h-3 fill-white stroke-none" />
+              </button>
+              <span className="text-[9px] font-bold text-red-600 leading-none">stop</span>
+            </div>
+          ) : onNavigateAll ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={onNavigateAll}
+                disabled={isCalculatingMultiRoute || filteredCount === 0}
+                className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                title={`Start Multi-Stop Route Navigation for all ${filteredCount} filtered accounts`}
+              >
+                {isCalculatingMultiRoute ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                ) : (
+                  <Navigation className="w-3.5 h-3.5 fill-white stroke-none" />
+                )}
+              </button>
+              <span className="text-[9px] font-bold text-blue-600 leading-none">start</span>
+            </div>
+          ) : selectedCustomer && onNavigateSelected ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={onNavigateSelected}
+                className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+                title={`Start Navigation to ${selectedCustomer.name}`}
+              >
+                <Navigation className="w-3.5 h-3.5 fill-white stroke-none" />
+              </button>
+              <span className="text-[9px] font-bold text-blue-600 leading-none">start</span>
+            </div>
           ) : null}
         </div>
       </div>
 
-      {/* Animated Filter Dropdown Menu */}
+      {/* Filter Options Dropdown Popup (Matching Photos 1 & 2) */}
       {isFilterDropdownOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-2.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200">
-          <div className="px-3 py-1.5 flex items-center justify-between border-b border-slate-100">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Filter Customers</span>
-            <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">
-              Active: {currentFilterObj.label}
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white/98 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
+          
+          {/* Header & Reset */}
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+              Filter Options
             </span>
+            {isFilterActive && (
+              <button
+                onClick={handleResetFilters}
+                className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset Filters
+              </button>
+            )}
           </div>
 
-          <div className="space-y-1 pt-1">
-            {filterOptions.map((opt) => {
-              const IconComp = opt.icon;
-              const isSelected = filters.status === opt.key;
-
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => {
-                    onFilterChange({ ...filters, status: opt.key });
-                    setIsFilterDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                      : 'hover:bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`p-1.5 rounded-lg ${
-                        isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      <IconComp className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold leading-tight">{opt.label}</p>
-                      <p className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
-                        {opt.subtitle}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {opt.count !== undefined && (
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                          isSelected ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {opt.count}
-                      </span>
-                    )}
-                    {isSelected && <Check className="w-4 h-4 text-white" />}
-                  </div>
-                </button>
-              );
-            })}
+          {/* Section 1: FILTER BY OVERDUE PERIOD (Photo 1) */}
+          <div className="space-y-2.5">
+            <h4 className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+              FILTER BY OVERDUE PERIOD
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {overduePeriodOptions.map((opt) => {
+                const isSelected = (filters.overduePeriod || 'all') === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => {
+                      onFilterChange({ ...filters, overduePeriod: opt.key });
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-2 border-blue-600 bg-blue-50/80 text-blue-700 font-bold shadow-xs'
+                        : 'border border-slate-200/80 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Section 2: FILTER BY OUTSTANDING AMOUNT (₹) (Photo 2) */}
+          <div className="space-y-2.5 pt-1">
+            <h4 className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+              FILTER BY OUTSTANDING AMOUNT (₹)
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {outstandingAmountOptions.map((opt) => {
+                const isSelected = (filters.outstandingAmount || 'all') === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => {
+                      onFilterChange({ ...filters, outstandingAmount: opt.key });
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-2 border-emerald-600 bg-emerald-50/80 text-emerald-700 font-bold shadow-xs'
+                        : 'border border-slate-200/80 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Direct Button to Start Navigation to ALL Filtered Customers */}
+          {onNavigateAll && (
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              <button
+                onClick={() => {
+                  setIsFilterDropdownOpen(false);
+                  onNavigateAll();
+                }}
+                disabled={isCalculatingMultiRoute || filteredCount === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCalculatingMultiRoute ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Navigation className="w-4 h-4 fill-white stroke-none" />
+                )}
+                <span>Navigate All {filteredCount} Filtered Customers</span>
+              </button>
+              <p className="text-[10px] text-center text-slate-400 font-medium">
+                Calculates optimized multi-stop route connecting all matching consumer accounts
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

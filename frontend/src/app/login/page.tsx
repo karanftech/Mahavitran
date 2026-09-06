@@ -3,9 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, User, AlertCircle, ArrowRight, Lock, Mail, UserPlus } from 'lucide-react';
+import { Shield, User, AlertCircle, ArrowRight, Lock, Mail, UserPlus, LogIn } from 'lucide-react';
 import { authService } from '@/services/authService';
-import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 import MahavitaranPageLoader from '@/components/ui/MahavitaranPageLoader';
 
 export default function LoginPage() {
@@ -42,20 +41,13 @@ export default function LoginPage() {
     return <MahavitaranPageLoader message="Signing in & initializing portal..." fullScreen={true} />;
   }
 
-
-
-
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-50 font-sans">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
-        {/* Official Mahavitaran Header */}
-        <div className="text-center space-y-3">
-          <div className="flex justify-center">
-            <MahavitaranLogo size="lg" showSubtitle={true} />
-          </div>
-          <div className="pt-2">
-            <h2 className="text-xl font-extrabold text-slate-900">Field Officer Login</h2>
-          </div>
+        {/* Header Title */}
+        <div className="text-center space-y-1">
+          <h2 className="text-2xl font-extrabold text-slate-900">Login</h2>
+          <p className="text-xs text-slate-500 font-medium">Enter your credentials</p>
         </div>
 
         {error && (

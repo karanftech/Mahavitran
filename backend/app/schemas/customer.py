@@ -19,6 +19,10 @@ class CustomerCreate(BaseModel):
     latitude: float
     longitude: float
     meter_number: str
+    pending_amount: Optional[float] = 0.0
+    due_date: Optional[str] = None
+    status: Optional[str] = "pending"
+    priority: Optional[str] = "normal"
     assigned_officer_id: Optional[str] = None
 
 class CustomerUpdate(BaseModel):
