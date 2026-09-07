@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX, Check } from 'lucide-react';
 import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter } from '@/types';
 
 interface MapFiltersProps {
@@ -80,8 +80,8 @@ export default function MapFilters({
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      {/* Floating Search & Filter Pill Bar (Matching screenshot) */}
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full px-4 py-2 shadow-lg flex items-center gap-3 transition-all hover:shadow-xl focus-within:ring-2 focus-within:ring-blue-500/30">
+      {/* Floating Search & Filter Pill Bar */}
+      <div className="bg-white border border-slate-200 rounded-full px-4 py-2 shadow-xl flex items-center gap-3 transition-all hover:shadow-2xl focus-within:ring-2 focus-within:ring-blue-500/30">
         
         {/* Search Icon */}
         <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -180,74 +180,98 @@ export default function MapFilters({
         </div>
       </div>
 
-      {/* Filter Options Dropdown Popup (Matching Photos 1 & 2) */}
+      {/* Filter Options Dropdown Popup with Checkboxes */}
       {isFilterDropdownOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white/98 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
           
           {/* Header & Reset */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-              Filter Options
-            </span>
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Filter Options
+              </span>
+            </div>
             {isFilterActive && (
               <button
+                type="button"
                 onClick={handleResetFilters}
-                className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full cursor-pointer transition-colors"
               >
                 <RotateCcw className="w-3 h-3" />
-                Reset Filters
+                <span>Reset Filters</span>
               </button>
             )}
           </div>
 
-          {/* Section 1: FILTER BY OVERDUE PERIOD (Photo 1) */}
-          <div className="space-y-2.5">
-            <h4 className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              FILTER BY OVERDUE PERIOD
+          {/* Section 1: FILTER BY OVERDUE PERIOD */}
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-0.5">
+              Filter by Overdue Period
             </h4>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {overduePeriodOptions.map((opt) => {
                 const isSelected = (filters.overduePeriod || 'all') === opt.key;
                 return (
                   <button
                     key={opt.key}
+                    type="button"
                     onClick={() => {
                       onFilterChange({ ...filters, overduePeriod: opt.key });
                     }}
-                    className={`px-4 py-2 rounded-full text-xs transition-all cursor-pointer ${
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left transition-all cursor-pointer border ${
                       isSelected
-                        ? 'border-2 border-blue-600 bg-blue-50/80 text-blue-700 font-bold shadow-xs'
-                        : 'border border-slate-200/80 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 font-bold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
                     }`}
                   >
-                    {opt.label}
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                        isSelected
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span className="truncate">{opt.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Section 2: FILTER BY OUTSTANDING AMOUNT (₹) (Photo 2) */}
-          <div className="space-y-2.5 pt-1">
-            <h4 className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              FILTER BY OUTSTANDING AMOUNT (₹)
+          {/* Section 3: FILTER BY OUTSTANDING AMOUNT (₹) */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-0.5">
+              Filter by Outstanding Amount (₹)
             </h4>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {outstandingAmountOptions.map((opt) => {
                 const isSelected = (filters.outstandingAmount || 'all') === opt.key;
                 return (
                   <button
                     key={opt.key}
+                    type="button"
                     onClick={() => {
                       onFilterChange({ ...filters, outstandingAmount: opt.key });
                     }}
-                    className={`px-4 py-2 rounded-full text-xs transition-all cursor-pointer ${
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left transition-all cursor-pointer border ${
                       isSelected
-                        ? 'border-2 border-emerald-600 bg-emerald-50/80 text-emerald-700 font-bold shadow-xs'
-                        : 'border border-slate-200/80 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
+                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-900 font-bold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300'
                     }`}
                   >
-                    {opt.label}
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                        isSelected
+                          ? 'bg-emerald-600 border-emerald-600 text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span className="truncate">{opt.label}</span>
                   </button>
                 );
               })}
@@ -256,14 +280,15 @@ export default function MapFilters({
 
           {/* Direct Button to Start Navigation to ALL Filtered Customers */}
           {onNavigateAll && (
-            <div className="pt-3 border-t border-slate-100 space-y-2">
+            <div className="pt-3 border-t border-slate-100 space-y-1.5">
               <button
+                type="button"
                 onClick={() => {
                   setIsFilterDropdownOpen(false);
                   onNavigateAll();
                 }}
                 disabled={isCalculatingMultiRoute || filteredCount === 0}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCalculatingMultiRoute ? (
                   <Loader2 className="w-4 h-4 animate-spin text-white" />

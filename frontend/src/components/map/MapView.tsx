@@ -159,6 +159,7 @@ export default function MapView({
   const lastDirectionsKeyRef = useRef<string>('');
   const lastFittedMultiRouteRef = useRef<string>('');
   const userHasInteractedRef = useRef<boolean>(false);
+  const isProgrammaticZoomRef = useRef<boolean>(false);
 
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
@@ -390,6 +391,10 @@ export default function MapView({
       disableFollowMode();
     });
     googleMapRef.current.addListener('zoom_changed', () => {
+      if (isProgrammaticZoomRef.current) {
+        isProgrammaticZoomRef.current = false;
+        return;
+      }
       userHasInteractedRef.current = true;
       disableFollowMode();
     });
@@ -499,6 +504,7 @@ export default function MapView({
             const bounds = new google.maps.LatLngBounds();
             pathLatLngs.forEach((pt: any) => bounds.extend(pt));
             if (!bounds.isEmpty()) {
+              isProgrammaticZoomRef.current = true;
               googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
             }
           }
@@ -566,6 +572,7 @@ export default function MapView({
 
     directionsServiceRef.current.route(request, (result: any, status: any) => {
       if (status === google.maps.DirectionsStatus.OK && result && result.routes && result.routes.length > 0) {
+        directionsRendererRef.current.setOptions({ preserveViewport: true });
         directionsRendererRef.current.setMap(googleMapRef.current);
         directionsRendererRef.current.setDirections(result);
 
@@ -735,7 +742,7 @@ export default function MapView({
         { radius: 10, fillColor: '#0284c7', color: '#fff', weight: 2, fillOpacity: 1 }
       ).addTo(leafletMapRef.current);
       if (isFollowing) {
-        leafletMapRef.current.setView([officerCoords.latitude, officerCoords.longitude]);
+        leafletMapRef.current.panTo([officerCoords.latitude, officerCoords.longitude]);
       }
     }
 
@@ -799,7 +806,10 @@ export default function MapView({
       const bounds = new (window as any).google.maps.LatLngBounds();
       if (officerCoords) bounds.extend({ lat: officerCoords.latitude, lng: officerCoords.longitude });
       customers.forEach((c) => bounds.extend({ lat: c.latitude, lng: c.longitude }));
-      if (!bounds.isEmpty()) googleMapRef.current.fitBounds(bounds);
+      if (!bounds.isEmpty()) {
+        isProgrammaticZoomRef.current = true;
+        googleMapRef.current.fitBounds(bounds);
+      }
     } else if (mapEngine === 'leaflet' && leafletMapRef.current && (window as any).L) {
       const L = (window as any).L;
       const pts: [number, number][] = [];
