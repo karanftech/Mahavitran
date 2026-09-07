@@ -273,9 +273,9 @@ function MapPageContent() {
   ]);
 
   const handleSelectMapCustomer = React.useCallback(
-    (c: Customer) => {
+    (c: Customer | null) => {
       setSelectedCustomer(c);
-      if (isMultiNavigating && multiRoute) {
+      if (c && isMultiNavigating && multiRoute) {
         const stopIdx = multiRoute.stops.findIndex((s) => s.customer_id === c.customer_id);
         if (stopIdx !== -1) setCurrentStopIndex(stopIdx);
       }
@@ -298,6 +298,10 @@ function MapPageContent() {
   }, []);
 
 
+
+  const singleNavCustomers = useMemo(() => {
+    return navTargetCustomer ? [navTargetCustomer] : [];
+  }, [navTargetCustomer]);
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
@@ -329,7 +333,7 @@ function MapPageContent() {
       {/* Main Interactive Map Canvas */}
       <div className="w-full h-full">
         <MapView
-          customers={isNavigating && navTargetCustomer && !isMultiNavigating ? [navTargetCustomer] : filteredCustomers}
+          customers={isNavigating && navTargetCustomer && !isMultiNavigating ? singleNavCustomers : filteredCustomers}
           officerCoords={officerCoords}
           officerHeading={officerHeading}
           selectedCustomer={selectedCustomer}

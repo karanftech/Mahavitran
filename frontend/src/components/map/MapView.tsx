@@ -27,7 +27,7 @@ interface MapViewProps {
   activeStopIndex?: number;
   navState?: NavigationState;
   streetView?: StreetViewState;
-  onSelectCustomer: (customer: Customer) => void;
+  onSelectCustomer: (customer: Customer | null) => void;
   onExitNavigation?: () => void;
   onCollectPayment?: (customer?: Customer) => void;
   onOpenStreetView?: (customer: Customer) => void;
@@ -198,9 +198,17 @@ export default function MapView({
   const onDirectionsCalculatedRef = useRef(onDirectionsCalculated);
   onDirectionsCalculatedRef.current = onDirectionsCalculated;
 
+  const lastOpenWindowFingerprintRef = useRef<string | null>(null);
+
   // Compact InfoWindow callout over marker with Name, Meter No, Amt & Collect button
   const showInfoWindowForCustomer = useCallback((customer: Customer, marker: any) => {
-    if (!infoWindowRef.current || !googleMapRef.current) return;
+    if (!infoWindowRef.current || !googleMapRef.current || !marker) return;
+
+    const fingerprint = `${customer.customer_id}_${customer.pending_amount}_${customer.status}`;
+    if (lastOpenWindowFingerprintRef.current === fingerprint) {
+      return;
+    }
+    lastOpenWindowFingerprintRef.current = fingerprint;
 
     const contentHtml = `
       <div style="padding: 2px 4px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 190px; max-width: 220px; box-sizing: border-box;">
@@ -342,6 +350,12 @@ export default function MapView({
     });
 
     infoWindowRef.current = new google.maps.InfoWindow();
+    infoWindowRef.current.addListener('closeclick', () => {
+      lastOpenWindowFingerprintRef.current = null;
+      if (onSelectCustomerRef.current) {
+        onSelectCustomerRef.current(null);
+      }
+    });
     directionsServiceRef.current = new google.maps.DirectionsService();
 
     directionsRendererRef.current = new google.maps.DirectionsRenderer({
@@ -686,6 +700,11 @@ export default function MapView({
       const selectedMarker = customerMarkersRef.current.get(selectedCustomer.customer_id);
       if (selectedMarker) {
         showInfoWindowForCustomer(selectedCustomer, selectedMarker);
+      }
+    } else {
+      if (infoWindowRef.current && lastOpenWindowFingerprintRef.current !== null) {
+        infoWindowRef.current.close();
+        lastOpenWindowFingerprintRef.current = null;
       }
     }
   }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer, isMuted]);

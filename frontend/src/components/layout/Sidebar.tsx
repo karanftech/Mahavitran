@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, MapPin, Users, CreditCard, BarChart3, UserCheck, LogOut } from 'lucide-react';
+import { LayoutDashboard, MapPin, Users, CreditCard, BarChart3, UserCheck, Power } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import MahavitaranLogo from '@/components/ui/MahavitaranLogo';

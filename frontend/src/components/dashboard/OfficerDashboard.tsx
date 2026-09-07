@@ -161,7 +161,7 @@ export default function OfficerDashboard() {
               <Users className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 transition-colors flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-              View List <ChevronRight className="w-3 h-3 inline" />
+              View <ChevronRight className="w-3 h-3 inline" />
             </span>
           </div>
           <p className="text-[11px] text-slate-500 group-hover:text-blue-900 uppercase font-semibold transition-colors">
@@ -195,7 +195,7 @@ export default function OfficerDashboard() {
               <FileText className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-bold text-red-600 bg-red-50 group-hover:bg-red-100 px-2 py-0.5 rounded-full border border-red-200 transition-colors flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-              View Pending <ChevronRight className="w-3 h-3 inline" />
+              View <ChevronRight className="w-3 h-3 inline" />
             </span>
           </div>
           <p className="text-[11px] text-slate-500 group-hover:text-red-900 uppercase font-semibold transition-colors">

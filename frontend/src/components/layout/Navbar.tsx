@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Zap, LogOut, User as UserIcon } from 'lucide-react';
+import { Zap, Power, User as UserIcon } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
@@ -48,7 +48,7 @@ export default function Navbar() {
               className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex flex-col items-center justify-center gap-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-xs transition-colors cursor-pointer shrink-0"
               title="Sign out"
             >
-              <LogOut className="w-4 h-4 text-rose-600" />
+              <Power className="w-4 h-4 text-rose-600" />
               <span className="text-[8px] font-extrabold text-rose-700 leading-none">Logout</span>
             </button>
           </div>
