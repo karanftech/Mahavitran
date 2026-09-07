@@ -23,6 +23,8 @@ import { useStreetView } from '@/hooks/useStreetView';
 import { calculateHaversineDistance } from '@/utils/geo';
 import { matchCustomerFilters } from '@/utils/formatters';
 
+import { stopSpeech, setSpeechMuted } from '@/utils/speech';
+
 function MapPageContent() {
   const searchParams = useSearchParams();
   const targetCusId = searchParams.get('customer_id');
@@ -57,6 +59,21 @@ function MapPageContent() {
   const [isMultiNavigating, setIsMultiNavigating] = useState<boolean>(false);
   const [currentStopIndex, setCurrentStopIndex] = useState<number>(0);
   const [isCalculatingMultiRoute, setIsCalculatingMultiRoute] = useState<boolean>(false);
+
+  // Audio Mute State
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  const handleToggleMute = React.useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      setSpeechMuted(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    setSpeechMuted(isMuted);
+  }, [isMuted]);
 
   const [filters, setFilters] = useState<MapFilterState>({
     status: 'all',
@@ -108,6 +125,22 @@ function MapPageContent() {
   const filteredCustomers = useMemo(() => {
     return allCustomers.filter((c) => matchCustomerFilters(c, filters));
   }, [allCustomers, filters]);
+
+  // Auto-calculate multi-stop route connecting all filtered customers by default
+  useEffect(() => {
+    if (filteredCustomers.length > 0) {
+      const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
+      routeService.calculateMultiRoute(effectiveCoords, filteredCustomers)
+        .then((res) => {
+          setMultiRoute(res);
+        })
+        .catch((err) => {
+          console.warn('Auto multi-route calculation error:', err);
+        });
+    } else {
+      setMultiRoute(null);
+    }
+  }, [filteredCustomers, officerCoords]);
 
   // Count aggregates for filters
   const counts = useMemo(() => {
@@ -273,25 +306,25 @@ function MapPageContent() {
         <OfflineSyncBanner />
       </div>
 
-      {/* Top Map Search & Filter Bar — Hidden during active navigation */}
-      {!isNavigating && !isMultiNavigating && (
-        <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
-          <MapFilters
-            filters={filters}
-            onFilterChange={setFilters}
-            customerCounts={counts}
-            selectedCustomer={selectedCustomer}
-            onNavigateSelected={
-              selectedCustomer ? () => handleStartSingleNavigation(selectedCustomer) : undefined
-            }
-            onNavigateAll={handleStartMultiNavigation}
-            onStopNavigation={handleStopMultiNavigation}
-            isNavigating={false}
-            isCalculatingMultiRoute={isCalculatingMultiRoute}
-            filteredCount={filteredCustomers.length}
-          />
-        </div>
-      )}
+      {/* Top Floating Map Search & Filter Bar (Matching screenshot) */}
+      <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
+        <MapFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          customerCounts={counts}
+          selectedCustomer={selectedCustomer}
+          onNavigateSelected={
+            selectedCustomer ? () => handleStartSingleNavigation(selectedCustomer) : undefined
+          }
+          onNavigateAll={handleStartMultiNavigation}
+          onStopNavigation={handleStopMultiNavigation}
+          isNavigating={isNavigating || isMultiNavigating}
+          isCalculatingMultiRoute={isCalculatingMultiRoute}
+          filteredCount={filteredCustomers.length}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+        />
+      </div>
 
       {/* Main Interactive Map Canvas */}
       <div className="w-full h-full">
@@ -314,6 +347,8 @@ function MapPageContent() {
           onDisableFollow={disableFollow}
           onDirectionsCalculated={setNavigationRoute}
           onSelectStopIndex={handleSelectStopIndex}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
         />
       </div>
 

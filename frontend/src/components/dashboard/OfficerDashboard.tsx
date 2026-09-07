@@ -126,20 +126,20 @@ export default function OfficerDashboard() {
           <p className="text-xs text-slate-500 mt-0.5">Locate meters, navigate routes, and collect pending electricity bills.</p>
         </div>
 
-        <div className="flex flex-row items-center gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto shrink-0 mt-1 sm:mt-0">
           <button
             onClick={() => setIsUploadModalOpen(true)}
-            className="h-8 px-3 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0"
+            className="h-9 px-3.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer w-full sm:w-auto"
           >
-            <Upload className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <Upload className="w-4 h-4 text-blue-600 shrink-0" />
             <span>Upload Data (CSV/Excel)</span>
           </button>
 
           <Link
             href="/map"
-            className="h-8 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0"
+            className="h-9 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer w-full sm:w-auto"
           >
-            <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
+            <Zap className="w-4 h-4 fill-current shrink-0" />
             <span>Open Interactive Map</span>
           </Link>
         </div>
@@ -160,7 +160,7 @@ export default function OfficerDashboard() {
             <div className="w-8 h-8 rounded bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white transition-colors flex items-center justify-center mb-1">
               <Users className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 transition-colors flex items-center gap-0.5">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 transition-colors flex items-center gap-0.5 shrink-0 whitespace-nowrap">
               View List <ChevronRight className="w-3 h-3 inline" />
             </span>
           </div>
@@ -194,7 +194,7 @@ export default function OfficerDashboard() {
             <div className="w-8 h-8 rounded bg-red-50 group-hover:bg-red-600 text-red-600 group-hover:text-white transition-colors flex items-center justify-center mb-1">
               <FileText className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-bold text-red-600 bg-red-50 group-hover:bg-red-100 px-2 py-0.5 rounded-full border border-red-200 transition-colors flex items-center gap-0.5">
+            <span className="text-[10px] font-bold text-red-600 bg-red-50 group-hover:bg-red-100 px-2 py-0.5 rounded-full border border-red-200 transition-colors flex items-center gap-0.5 shrink-0 whitespace-nowrap">
               View Pending <ChevronRight className="w-3 h-3 inline" />
             </span>
           </div>

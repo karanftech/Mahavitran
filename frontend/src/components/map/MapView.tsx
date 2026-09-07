@@ -36,6 +36,8 @@ interface MapViewProps {
   onDisableFollow?: () => void;
   onDirectionsCalculated?: (result: RouteCalculationResult) => void;
   onSelectStopIndex?: (index: number) => void;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
 // ─── Marker icon helpers ──────────────────────────────────────────────────────
@@ -132,6 +134,8 @@ export default function MapView({
   onDisableFollow,
   onDirectionsCalculated,
   onSelectStopIndex,
+  isMuted: isMutedProp,
+  onToggleMute: onToggleMuteProp,
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -158,17 +162,23 @@ export default function MapView({
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
   const [mapError, setMapError] = useState<string | null>(null);
-  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('roadmap');
+  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('hybrid');
   const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(false);
   const [is3D, setIs3D] = useState<boolean>(false);
   const [mapHeading, setMapHeading] = useState<number>(officerHeading || 0);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isMutedInternal, setIsMutedInternal] = useState<boolean>(false);
+
+  const isMuted = isMutedProp !== undefined ? isMutedProp : isMutedInternal;
 
   const handleToggleMute = () => {
-    setIsMuted((prev) => {
-      if (!prev) stopSpeech();
-      return !prev;
-    });
+    if (onToggleMuteProp) {
+      onToggleMuteProp();
+    } else {
+      setIsMutedInternal((prev) => {
+        if (!prev) stopSpeech();
+        return !prev;
+      });
+    }
   };
 
   const isFollowing = navState?.isFollowing ?? isFollowingInternal;
@@ -243,7 +253,6 @@ export default function MapView({
   useEffect(() => {
     if (navState?.active) {
       setIsFollowingInternal(true);
-      setIsMuted(false); // Always start with audio ON when navigation begins
     } else {
       // Reset 3D view when navigation ends without forcing zoom level reset
       if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
@@ -288,8 +297,8 @@ export default function MapView({
       });
 
       leafletTileLayerRef.current = L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        { maxZoom: 19, attribution: '© OpenStreetMap © CARTO' }
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: '© Esri World Imagery' }
       ).addTo(leafletMapRef.current);
 
       leafletMapRef.current.on('dragstart zoomstart', () => disableFollowMode());
@@ -321,7 +330,7 @@ export default function MapView({
     googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
       center: { lat: centerLat, lng: centerLng },
       zoom: 15,
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
+      mapTypeId: google.maps.MapTypeId.HYBRID,
       mapId: 'MAHAVITARAN_3D_NAV_MAP',
       tiltInteractionEnabled: true,
       headingInteractionEnabled: true,
@@ -666,7 +675,7 @@ export default function MapView({
         marker.addListener('click', () => {
           onSelectCustomerRef.current(customer);
           showInfoWindowForCustomer(customer, marker);
-          speakInstruction(customer.name, false);
+          speakInstruction(customer.name, isMuted);
         });
 
         customerMarkersRef.current.set(customer.customer_id, marker);
@@ -679,7 +688,7 @@ export default function MapView({
         showInfoWindowForCustomer(selectedCustomer, selectedMarker);
       }
     }
-  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer]);
+  }, [mapEngine, customers, selectedCustomer, multiRoute, activeStopIndex, showInfoWindowForCustomer, isMuted]);
 
 
 
@@ -713,7 +722,7 @@ export default function MapView({
       marker.bindTooltip(`<b>${customer.meter_number}</b>`, { permanent: true, direction: 'top' });
       marker.on('click', () => {
         onSelectCustomerRef.current(customer);
-        speakInstruction(customer.name, false);
+        speakInstruction(customer.name, isMuted);
       });
       leafletMarkersRef.current.set(customer.customer_id, marker);
     });

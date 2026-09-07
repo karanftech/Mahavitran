@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Navigation, Loader2, Square, RotateCcw } from 'lucide-react';
+import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter } from '@/types';
 
 interface MapFiltersProps {
@@ -15,6 +15,8 @@ interface MapFiltersProps {
   isCalculatingMultiRoute?: boolean;
   filteredCount?: number;
   selectedCustomer?: Customer | null;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
 export default function MapFilters({
@@ -28,6 +30,8 @@ export default function MapFilters({
   isCalculatingMultiRoute = false,
   filteredCount = 0,
   selectedCustomer,
+  isMuted = false,
+  onToggleMute,
 }: MapFiltersProps) {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -76,7 +80,7 @@ export default function MapFilters({
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      {/* Floating Search & Filter Pill Bar */}
+      {/* Floating Search & Filter Pill Bar (Matching screenshot) */}
       <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full px-4 py-2 shadow-lg flex items-center gap-3 transition-all hover:shadow-xl focus-within:ring-2 focus-within:ring-blue-500/30">
         
         {/* Search Icon */}
@@ -112,6 +116,26 @@ export default function MapFilters({
             </button>
             <span className="text-[9px] font-bold text-slate-500 leading-none">filter</span>
           </div>
+
+          {/* Mute Audio Button */}
+          {onToggleMute && (
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={onToggleMute}
+                className={`p-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                  isMuted
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                }`}
+                title={isMuted ? 'Unmute Navigation Audio' : 'Mute Navigation Audio'}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-rose-600" /> : <Volume2 className="w-4 h-4 text-slate-600" />}
+              </button>
+              <span className={`text-[9px] font-bold leading-none ${isMuted ? 'text-rose-600' : 'text-slate-500'}`}>
+                {isMuted ? 'muted' : 'audio'}
+              </span>
+            </div>
+          )}
 
           {/* Navigation Action Button */}
           {isNavigating ? (

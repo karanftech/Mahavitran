@@ -34,7 +34,7 @@ export function useNavigation(options: UseNavigationOptions = {}) {
 
       // Speak customer name immediately — called inside a user-gesture handler
       // so browsers allow speech synthesis without autoplay restrictions.
-      speakInstruction(`Navigating to ${customer.name}`, false);
+      speakInstruction(`Navigating to ${customer.name}`);
 
       if (!officerCoords) return;
 

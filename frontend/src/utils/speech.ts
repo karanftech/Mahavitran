@@ -2,11 +2,23 @@
 
 let lastSpokenText = '';
 let activeUtterance: SpeechSynthesisUtterance | null = null;
+let isMutedGlobal = false;
+
+export const setSpeechMuted = (muted: boolean) => {
+  isMutedGlobal = muted;
+  if (muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    activeUtterance = null;
+    lastSpokenText = '';
+  }
+};
+
+export const isSpeechMuted = () => isMutedGlobal;
 
 export const speakInstruction = (text: string, isMuted: boolean = false) => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
-  if (isMuted) {
+  if (isMutedGlobal || isMuted) {
     window.speechSynthesis.cancel();
     lastSpokenText = '';
     activeUtterance = null;
@@ -35,7 +47,7 @@ export const speakInstruction = (text: string, isMuted: boolean = false) => {
     activeUtterance.lang = 'en-US';
 
     const playSpeech = () => {
-      if (!activeUtterance) return;
+      if (!activeUtterance || isMutedGlobal) return;
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
         const preferredVoice =
@@ -63,7 +75,9 @@ export const speakInstruction = (text: string, isMuted: boolean = false) => {
 
       // Cancel previous utterance and speak new instruction clearly
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(activeUtterance);
+      if (!isMutedGlobal) {
+        window.speechSynthesis.speak(activeUtterance);
+      }
     };
 
     if (window.speechSynthesis.getVoices().length === 0) {
