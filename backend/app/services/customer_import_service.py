@@ -77,8 +77,21 @@ class CustomerImportService:
             except ImportError:
                 raise HTTPException(status_code=500, detail="openpyxl package is required for Excel files.")
 
-            workbook = openpyxl.load_workbook(filename=io.BytesIO(content), data_only=True)
+            try:
+                workbook = openpyxl.load_workbook(filename=io.BytesIO(content), data_only=True)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to read Excel file. Please ensure it is a valid .xlsx file: {str(e)}"
+                )
+
             sheet = workbook.active
+            if sheet is None and workbook.worksheets:
+                sheet = workbook.worksheets[0]
+
+            if sheet is None:
+                raise HTTPException(status_code=400, detail="Uploaded Excel file contains no valid or active worksheets.")
+
             rows = list(sheet.iter_rows(values_only=True))
             if not rows:
                 raise HTTPException(status_code=400, detail="Uploaded Excel file is empty.")

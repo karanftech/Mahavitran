@@ -206,7 +206,7 @@ export default function MapControls({
   const totalActions = actions.length;
 
   return (
-    <div ref={menuRef} className="absolute bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-center gap-2.5 z-[60] select-none">
+    <div ref={menuRef} className="absolute bottom-16 right-4 md:bottom-6 md:right-6 flex flex-col items-center gap-2.5 z-[60] select-none">
       
       {/* 1. Staggered Floating Circular Icons Stack (Shoots Upward Separately) */}
       <div className="flex flex-col items-center gap-2">
@@ -236,17 +236,17 @@ export default function MapControls({
       {/* 2. Master 3-Line Menu Trigger Button */}
       <button
         onClick={() => setIsMenuOpen((prev) => !prev)}
-        className={`w-11 h-11 rounded-full shadow-2xl border flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 cursor-pointer ${
+        className={`w-12 h-12 rounded-full shadow-xl border flex items-center justify-center transition-all duration-300 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
           isMenuOpen
             ? 'bg-slate-900 text-white border-slate-800 ring-2 ring-slate-900/30'
-            : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50'
+            : 'bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50'
         }`}
         title={isMenuOpen ? 'Close Controls Menu' : 'Open Map Controls Menu'}
       >
         {isMenuOpen ? (
           <X className="w-5 h-5 transition-transform duration-300 rotate-90" />
         ) : (
-          <Menu className="w-5 h-5 transition-transform duration-300" />
+          <Menu className="w-5 h-5 text-slate-800 transition-transform duration-300" />
         )}
       </button>
 
