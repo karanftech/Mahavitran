@@ -9,15 +9,20 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
+    const initAuth = () => {
       const storedUser = authService.getCurrentUser();
-      if (storedUser) {
-        setUser(storedUser);
-      }
+      setUser(storedUser);
       setIsLoading(false);
     };
 
     initAuth();
+
+    const handleStorageChange = () => {
+      setUser(authService.getCurrentUser());
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   return {

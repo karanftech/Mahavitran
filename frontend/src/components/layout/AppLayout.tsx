@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import OfflineSyncBanner from '@/components/offline/OfflineSyncBanner';
@@ -10,14 +10,35 @@ import MahavitaranPageLoader from '@/components/ui/MahavitaranPageLoader';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { isLoading, isAuthenticated } = useAuth();
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isMapPage = pathname === '/map' || pathname.startsWith('/map');
 
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated && !isAuthPage) {
+        router.replace('/login');
+      } else if (isAuthenticated && isAuthPage) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [isLoading, isAuthenticated, isAuthPage, router]);
+
   // Full-Screen Mahavitaran Page Loader while initial session is verifying
   if (isLoading) {
     return <MahavitaranPageLoader message="Initializing Mahavitaran Field Portal..." fullScreen={true} />;
+  }
+
+  // Strictly block rendering protected pages if user is not authenticated
+  if (!isAuthenticated && !isAuthPage) {
+    return <MahavitaranPageLoader message="Authentication required. Redirecting to Login..." fullScreen={true} />;
+  }
+
+  // Strictly block rendering login/register pages if user is already authenticated
+  if (isAuthenticated && isAuthPage) {
+    return <MahavitaranPageLoader message="Already signed in. Redirecting to Dashboard..." fullScreen={true} />;
   }
 
   // Auth pages (Login / Register) without sidebar

@@ -34,13 +34,9 @@ export function decodePolyline(encoded: string): Coordinates[] {
   return points;
 }
 
-const routeCache = new Map<string, RouteCalculationResult>();
-const multiRouteCache = new Map<string, MultiRouteCalculationResult>();
-
 export const routeService = {
   clearRouteCache() {
-    routeCache.clear();
-    multiRouteCache.clear();
+    // No-op: Caching disabled for real-time live route processing
   },
 
   async calculateRoute(
@@ -49,11 +45,6 @@ export const routeService = {
     customerId?: string,
     meterId?: string
   ): Promise<RouteCalculationResult> {
-    const cacheKey = `${origin.latitude.toFixed(4)}_${origin.longitude.toFixed(4)}_${destination.latitude.toFixed(4)}_${destination.longitude.toFixed(4)}`;
-    if (routeCache.has(cacheKey)) {
-      return routeCache.get(cacheKey)!;
-    }
-
     try {
       const response = await api.post<RouteCalculationResult>('/api/routes/calculate', {
         origin,
@@ -68,13 +59,10 @@ export const routeService = {
           data.coordinates_path = decoded;
         }
       }
-      routeCache.set(cacheKey, data);
       return data;
     } catch (err) {
       console.warn('Backend calculate route API offline, using client fallback:', err);
-      const fallback = this.calculateClientRoute(origin, destination);
-      routeCache.set(cacheKey, fallback);
-      return fallback;
+      return this.calculateClientRoute(origin, destination);
     }
   },
 

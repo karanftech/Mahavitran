@@ -18,6 +18,9 @@ const getBaseUrl = () => {
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
   },
 });
 
@@ -36,11 +39,11 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Intercept responses to handle 401 Unauthorized
+// Intercept responses to handle 401 Unauthorized or 403 Forbidden
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
