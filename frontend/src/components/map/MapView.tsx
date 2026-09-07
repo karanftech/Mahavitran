@@ -482,8 +482,9 @@ export default function MapView({
           fallbackPolylineRef.current.setMap(googleMapRef.current);
         }
 
-        // Auto-fit camera bounds ONLY ONCE when a new multi-route is first calculated
-        const multiKey = `${multiRoute?.total_distance_meters}_${pathLatLngs.length}`;
+        // Auto-fit camera bounds ONLY ONCE when customer list filter changes
+        const customerIdsKey = customers.map((c) => c.customer_id).sort().join(',');
+        const multiKey = `multi_${customerIdsKey}_${pathLatLngs.length}`;
         if (multiKey !== lastFittedMultiRouteRef.current) {
           lastFittedMultiRouteRef.current = multiKey;
           const bounds = new google.maps.LatLngBounds();

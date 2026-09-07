@@ -127,9 +127,26 @@ function MapPageContent() {
   }, [allCustomers, filters]);
 
   // Auto-calculate multi-stop route connecting all filtered customers by default
+  const lastMultiRouteOfficerCoordsRef = React.useRef<Coordinates | null>(null);
+
   useEffect(() => {
     if (filteredCustomers.length > 0) {
       const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
+
+      // Avoid recalculating multi-route on tiny GPS updates (< 200m movement) unless customer filters changed
+      if (lastMultiRouteOfficerCoordsRef.current && officerCoords) {
+        const distMoved = calculateHaversineDistance(
+          lastMultiRouteOfficerCoordsRef.current.latitude,
+          lastMultiRouteOfficerCoordsRef.current.longitude,
+          officerCoords.latitude,
+          officerCoords.longitude
+        );
+        if (distMoved < 200 && multiRoute !== null) {
+          return;
+        }
+      }
+
+      lastMultiRouteOfficerCoordsRef.current = effectiveCoords;
       routeService.calculateMultiRoute(effectiveCoords, filteredCustomers)
         .then((res) => {
           setMultiRoute(res);
