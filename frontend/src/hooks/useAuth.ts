@@ -9,20 +9,20 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = () => {
-      const storedUser = authService.getCurrentUser();
-      setUser(storedUser);
-      setIsLoading(false);
-    };
+    // Read current user session from localStorage
+    const storedUser = authService.getCurrentUser();
+    setUser(storedUser);
+    setIsLoading(false);
 
-    initAuth();
-
+    // Handle cross-tab or logout storage updates
     const handleStorageChange = () => {
       setUser(authService.getCurrentUser());
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   return {

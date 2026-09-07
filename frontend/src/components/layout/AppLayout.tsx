@@ -20,8 +20,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isLoading) {
       if (!isAuthenticated && !isAuthPage) {
         router.replace('/login');
-      } else if (isAuthenticated && isAuthPage) {
-        router.replace('/dashboard');
       }
     }
   }, [isLoading, isAuthenticated, isAuthPage, router]);
@@ -34,11 +32,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Strictly block rendering protected pages if user is not authenticated
   if (!isAuthenticated && !isAuthPage) {
     return <MahavitaranPageLoader message="Authentication required. Redirecting to Login..." fullScreen={true} />;
-  }
-
-  // Strictly block rendering login/register pages if user is already authenticated
-  if (isAuthenticated && isAuthPage) {
-    return <MahavitaranPageLoader message="Already signed in. Redirecting to Dashboard..." fullScreen={true} />;
   }
 
   // Auth pages (Login / Register) without sidebar
