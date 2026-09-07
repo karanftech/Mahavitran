@@ -885,7 +885,7 @@ export default function MapView({
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-full min-h-[500px] bg-slate-950 overflow-hidden select-none">
+    <div className="relative w-full h-full bg-slate-950 overflow-hidden select-none">
       {/* Map tile container */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 

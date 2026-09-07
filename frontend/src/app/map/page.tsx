@@ -6,7 +6,6 @@ import MapView from '@/components/map/MapView';
 import MapFilters from '@/components/map/MapFilters';
 import PaymentModal from '@/components/payments/PaymentModal';
 import ReceiptView from '@/components/payments/ReceiptView';
-import OfflineSyncBanner from '@/components/offline/OfflineSyncBanner';
 
 
 import {
@@ -327,11 +326,6 @@ function MapPageContent() {
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
-      {/* Offline Sync Banner */}
-      <div className="z-40">
-        <OfflineSyncBanner />
-      </div>
-
       {/* Top Floating Map Search & Filter Bar (Matching screenshot) */}
       <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
         <MapFilters
@@ -353,7 +347,7 @@ function MapPageContent() {
       </div>
 
       {/* Main Interactive Map Canvas */}
-      <div className="w-full h-full">
+      <div className="flex-1 w-full min-h-0 relative">
         <MapView
           customers={filteredCustomers}
           officerCoords={officerCoords}

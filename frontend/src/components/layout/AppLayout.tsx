@@ -36,9 +36,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="h-[100dvh] h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 flex flex-col font-sans">
         <OfflineSyncBanner />
-        <div className="flex flex-1 relative overflow-hidden h-full w-full">
+        <div className="flex flex-1 relative overflow-hidden w-full min-h-0">
           <Sidebar />
-          <main className="flex-1 w-full h-full overflow-hidden relative">
+          <main className="flex-1 w-full min-h-0 overflow-hidden relative">
             {children}
           </main>
         </div>
