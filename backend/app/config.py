@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
     GOOGLE_MAPS_API_KEY: str = ""
     GOOGLE_MAPS_SERVER_API_KEY: str = ""
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "*"
 
     @property
     def maps_key(self) -> str:
