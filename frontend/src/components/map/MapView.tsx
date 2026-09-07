@@ -158,6 +158,7 @@ export default function MapView({
   // Last direction request fingerprint (avoids duplicate API calls)
   const lastDirectionsKeyRef = useRef<string>('');
   const lastFittedMultiRouteRef = useRef<string>('');
+  const userHasInteractedRef = useRef<boolean>(false);
 
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
@@ -349,7 +350,9 @@ export default function MapView({
       clickableIcons: false,
     });
 
-    infoWindowRef.current = new google.maps.InfoWindow();
+    infoWindowRef.current = new google.maps.InfoWindow({
+      disableAutoPan: true,
+    });
     infoWindowRef.current.addListener('closeclick', () => {
       lastOpenWindowFingerprintRef.current = null;
       if (onSelectCustomerRef.current) {
@@ -381,9 +384,15 @@ export default function MapView({
       setIs3D(t > 0);
     });
 
-    // Only disable follow on user drag or zoom
-    googleMapRef.current.addListener('dragstart', () => disableFollowMode());
-    googleMapRef.current.addListener('zoom_changed', () => disableFollowMode());
+    // Mark user interaction & disable follow on user drag or zoom
+    googleMapRef.current.addListener('dragstart', () => {
+      userHasInteractedRef.current = true;
+      disableFollowMode();
+    });
+    googleMapRef.current.addListener('zoom_changed', () => {
+      userHasInteractedRef.current = true;
+      disableFollowMode();
+    });
 
     setMapEngine('google');
   }, [disableFollowMode]);
@@ -482,15 +491,16 @@ export default function MapView({
           fallbackPolylineRef.current.setMap(googleMapRef.current);
         }
 
-        // Auto-fit camera bounds ONLY ONCE when customer list filter changes
+        // Auto-fit camera bounds ONLY ONCE when customer list filter changes and user hasn't manually zoomed/panned
         const customerIdsKey = customers.map((c) => c.customer_id).sort().join(',');
-        const multiKey = `multi_${customerIdsKey}_${pathLatLngs.length}`;
-        if (multiKey !== lastFittedMultiRouteRef.current) {
-          lastFittedMultiRouteRef.current = multiKey;
-          const bounds = new google.maps.LatLngBounds();
-          pathLatLngs.forEach((pt: any) => bounds.extend(pt));
-          if (!bounds.isEmpty()) {
-            googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
+        if (customerIdsKey !== lastFittedMultiRouteRef.current) {
+          lastFittedMultiRouteRef.current = customerIdsKey;
+          if (!userHasInteractedRef.current) {
+            const bounds = new google.maps.LatLngBounds();
+            pathLatLngs.forEach((pt: any) => bounds.extend(pt));
+            if (!bounds.isEmpty()) {
+              googleMapRef.current.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
+            }
           }
         }
       }
@@ -784,6 +794,7 @@ export default function MapView({
 
   // ── 10. Fit All Bounds ───────────────────────────────────────────────────────
   const handleFitAllBounds = () => {
+    userHasInteractedRef.current = false;
     if (mapEngine === 'google' && googleMapRef.current && (window as any).google) {
       const bounds = new (window as any).google.maps.LatLngBounds();
       if (officerCoords) bounds.extend({ lat: officerCoords.latitude, lng: officerCoords.longitude });
@@ -800,6 +811,7 @@ export default function MapView({
 
   // ── 11. Zoom controls ────────────────────────────────────────────────────────
   const handleZoomIn = () => {
+    userHasInteractedRef.current = true;
     disableFollowMode();
     if (mapEngine === 'google' && googleMapRef.current) {
       const currentZoom = googleMapRef.current.getZoom() || 15;
@@ -810,6 +822,7 @@ export default function MapView({
   };
 
   const handleZoomOut = () => {
+    userHasInteractedRef.current = true;
     disableFollowMode();
     if (mapEngine === 'google' && googleMapRef.current) {
       const currentZoom = googleMapRef.current.getZoom() || 15;

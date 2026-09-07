@@ -128,24 +128,28 @@ function MapPageContent() {
 
   // Auto-calculate multi-stop route connecting all filtered customers by default
   const lastMultiRouteOfficerCoordsRef = React.useRef<Coordinates | null>(null);
+  const lastFilteredCustomerIdsRef = React.useRef<string>('');
 
   useEffect(() => {
     if (filteredCustomers.length > 0) {
       const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
+      const currentIdsKey = filteredCustomers.map((c) => c.customer_id).sort().join(',');
+      const filtersChanged = currentIdsKey !== lastFilteredCustomerIdsRef.current;
 
-      // Avoid recalculating multi-route on tiny GPS updates (< 200m movement) unless customer filters changed
-      if (lastMultiRouteOfficerCoordsRef.current && officerCoords) {
+      // Avoid recalculating multi-route on tiny GPS updates (< 500m movement) unless customer filters changed
+      if (!filtersChanged && lastMultiRouteOfficerCoordsRef.current && officerCoords) {
         const distMoved = calculateHaversineDistance(
           lastMultiRouteOfficerCoordsRef.current.latitude,
           lastMultiRouteOfficerCoordsRef.current.longitude,
           officerCoords.latitude,
           officerCoords.longitude
         );
-        if (distMoved < 200 && multiRoute !== null) {
+        if (distMoved < 500 && multiRoute !== null) {
           return;
         }
       }
 
+      lastFilteredCustomerIdsRef.current = currentIdsKey;
       lastMultiRouteOfficerCoordsRef.current = effectiveCoords;
       routeService.calculateMultiRoute(effectiveCoords, filteredCustomers)
         .then((res) => {
@@ -155,6 +159,7 @@ function MapPageContent() {
           console.warn('Auto multi-route calculation error:', err);
         });
     } else {
+      lastFilteredCustomerIdsRef.current = '';
       setMultiRoute(null);
     }
   }, [filteredCustomers, officerCoords]);
@@ -350,7 +355,7 @@ function MapPageContent() {
       {/* Main Interactive Map Canvas */}
       <div className="w-full h-full">
         <MapView
-          customers={isNavigating && navTargetCustomer && !isMultiNavigating ? singleNavCustomers : filteredCustomers}
+          customers={filteredCustomers}
           officerCoords={officerCoords}
           officerHeading={officerHeading}
           selectedCustomer={selectedCustomer}
