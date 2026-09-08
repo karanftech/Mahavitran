@@ -112,9 +112,10 @@ class CustomerImportService:
     async def import_customers(
         file: UploadFile, 
         db: AsyncIOMotorDatabase, 
-        uploader_officer_id: Optional[str] = None
+        uploader_officer_id: Optional[str] = None,
+        user_id_str: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Process rows, validate schema, and upsert documents into MongoDB."""
+        """Process rows, clear previous records for this field officer to optimize storage, and insert new records into MongoDB."""
         headers, data_rows = await CustomerImportService.parse_file_rows(file)
         mapping = CustomerImportService.get_column_mapping(headers)
 
@@ -124,6 +125,25 @@ class CustomerImportService:
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         today = datetime.utcnow()
         default_due_date = (today + timedelta(days=15)).strftime("%Y-%m-%d")
+
+        # Overwrite: Delete previous customer & meter records for this field officer
+        deleted_count = 0
+        officer_match = []
+        if uploader_officer_id:
+            officer_match.extend([
+                {"assigned_officer_id": uploader_officer_id},
+                {"uploaded_by_officer_id": uploader_officer_id}
+            ])
+        if user_id_str:
+            officer_match.extend([
+                {"assigned_officer_id": user_id_str},
+                {"uploaded_by_officer_id": user_id_str}
+            ])
+
+        if officer_match:
+            del_cus_res = await db.customers.delete_many({"$or": officer_match})
+            del_mtr_res = await db.meters.delete_many({"$or": officer_match})
+            deleted_count = del_cus_res.deleted_count
 
         inserted_count = 0
         updated_count = 0
@@ -249,5 +269,6 @@ class CustomerImportService:
             "total_processed": len(data_rows),
             "inserted_count": inserted_count,
             "updated_count": updated_count,
+            "deleted_count": deleted_count,
             "errors": errors
         }

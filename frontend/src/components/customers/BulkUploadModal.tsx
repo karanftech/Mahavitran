@@ -138,7 +138,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               </button>
             </div>
             <p className="text-[10px] text-blue-600">
-              Optional columns: <span className="font-mono">address</span>, <span className="font-mono">area</span>
+              Optional columns: <span className="font-mono">address</span>, <span className="font-mono">area</span> • <span className="font-semibold text-blue-900">Note: New upload will overwrite previous data for your account to optimize storage.</span>
             </p>
           </div>
 
@@ -209,8 +209,8 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     <div className="text-[11px] text-slate-500 font-medium uppercase">New Customers</div>
                   </div>
                   <div className="bg-white border border-green-200 p-2.5 rounded-md">
-                    <div className="text-lg font-extrabold text-blue-600">{uploadResult.updated_count}</div>
-                    <div className="text-[11px] text-slate-500 font-medium uppercase">Updated</div>
+                    <div className="text-lg font-extrabold text-blue-600">{(uploadResult as any).deleted_count ?? 0}</div>
+                    <div className="text-[11px] text-slate-500 font-medium uppercase">Replaced Old</div>
                   </div>
                 </div>
               </div>

@@ -361,16 +361,23 @@ async def upload_customers_bulk(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded.")
 
+    user_id_str = str(current_user["_id"])
     officer_id = None
     officer_doc = await db.officers.find_one({
         "$or": [
             {"user_id": current_user["_id"]},
+            {"user_id": user_id_str},
             {"email": current_user.get("email")}
         ]
     })
     if officer_doc:
         officer_id = officer_doc.get("officer_id")
 
-    return await CustomerImportService.import_customers(file=file, db=db, uploader_officer_id=officer_id)
+    return await CustomerImportService.import_customers(
+        file=file,
+        db=db,
+        uploader_officer_id=officer_id,
+        user_id_str=user_id_str
+    )
 
 
