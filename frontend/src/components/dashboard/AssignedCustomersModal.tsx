@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { X, Search, Users, Gauge, Navigation, Filter, DollarSign, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Customer } from '@/types';
 import { customerService } from '@/services/customerService';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatCurrency, formatDate, formatDistance } from '@/utils/formatters';
 import StatusBadge from '@/components/ui/Badge';
 
 interface AssignedCustomersModalProps {
@@ -161,12 +161,13 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
             </div>
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto custom-scrollbar shadow-xs">
-              <table className="w-full min-w-[720px] text-left border-collapse text-xs">
+              <table className="w-full min-w-[800px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 uppercase text-[10px] font-extrabold tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4">#</th>
                     <th className="py-3 px-4">Meter ID / Number</th>
                     <th className="py-3 px-4">Consumer Name</th>
+                    <th className="py-3 px-4 text-center">Distance</th>
                     <th className="py-3 px-4 text-right">Pending Amount</th>
                     <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4 text-right">Action</th>
@@ -206,6 +207,13 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
                             {cus.area && <span> • {cus.area}</span>}
                           </p>
                         </div>
+                      </td>
+
+                      {/* Distance */}
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                          {formatDistance(cus.distance_meters)}
+                        </span>
                       </td>
 
                       {/* Pending Amount */}
