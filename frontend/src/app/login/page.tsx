@@ -43,25 +43,6 @@ export default function LoginPage() {
           <p className="text-xs text-slate-500 font-medium">Enter your credentials to access the Field Officer portal</p>
         </div>
 
-        {/* Quick Demo Credentials Hint */}
-        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex items-center justify-between text-xs">
-          <div>
-            <p className="font-bold text-blue-900">Demo Officer Account</p>
-            <p className="text-[11px] text-blue-700">Email: <code className="font-mono bg-blue-100 px-1 py-0.5 rounded">officer@electricity.gov.in</code></p>
-            <p className="text-[11px] text-blue-700">Pass: <code className="font-mono bg-blue-100 px-1 py-0.5 rounded">officer123</code></p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail('officer@electricity.gov.in');
-              setPassword('officer123');
-            }}
-            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-[10px] shadow-xs cursor-pointer shrink-0"
-          >
-            Auto Fill
-          </button>
-        </div>
-
         {error && (
           <div className="bg-red-50 border border-red-200 p-3.5 rounded-lg text-xs text-red-700 flex items-center gap-2 font-semibold">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
