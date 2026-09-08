@@ -68,9 +68,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Render auth pages (login/register) without sidebar
   if (isAuthPage) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      <div className="h-[100dvh] h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 flex flex-col font-sans">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center p-4">
+        <main className="flex-1 flex items-center justify-center p-4 overflow-y-auto min-h-0">
           {children}
         </main>
       </div>

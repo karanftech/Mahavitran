@@ -51,8 +51,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-50 font-sans">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
+    <div className="w-full max-w-md my-auto bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
         {/* Official Mahavitaran Header */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
@@ -173,6 +172,5 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
-    </div>
   );
 }
