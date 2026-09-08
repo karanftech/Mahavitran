@@ -28,7 +28,6 @@ export default function PaymentModal({
 
   const [collectedAmount, setCollectedAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi_online' | 'cheque' | 'other'>('cash');
-  const [transactionRef, setTransactionRef] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +37,6 @@ export default function PaymentModal({
     if (customer && isOpen) {
       setCollectedAmount(customer.pending_amount.toString());
       setError(null);
-      setTransactionRef('');
       setRemarks('');
     }
   }, [customer, isOpen]);
@@ -60,25 +58,17 @@ export default function PaymentModal({
       return;
     }
 
-    if (paymentMethod === 'cheque' && !transactionRef.trim()) {
-      setError('Cheque number / reference is required for CHEQUE payments.');
-      return;
-    }
-
     setIsSubmitting(true);
 
     // Map UI payment method values to backend-accepted values
-    const backendPaymentMethod: 'cash' | 'upi' | 'online' | 'other' =
-      paymentMethod === 'upi_online' ? 'upi'
-      : paymentMethod === 'cheque' ? 'other'
-      : paymentMethod;
+    const backendPaymentMethod: string =
+      paymentMethod === 'upi_online' ? 'upi' : paymentMethod;
 
     const payload = {
       customer_id: customer.customer_id,
       meter_id: customer.meters?.[0]?.meter_id,
       amount: amt,
-      payment_method: paymentMethod,
-      transaction_reference: transactionRef.trim() || undefined,
+      payment_method: backendPaymentMethod,
       remarks: remarks.trim() || undefined,
       collection_latitude: officerCoords?.latitude,
       collection_longitude: officerCoords?.longitude,
@@ -102,7 +92,6 @@ export default function PaymentModal({
           officer_name: 'Field Officer (Offline Queue)',
           amount: amt,
           payment_method: paymentMethod === 'upi_online' ? 'UPI/ONLINE' : paymentMethod.toUpperCase(),
-          transaction_reference: transactionRef || 'N/A',
           remarks: remarks || 'Collected in offline mode',
           previous_pending_amount: customer.pending_amount,
           remaining_pending_amount: Math.max(0, customer.pending_amount - amt),
@@ -194,23 +183,6 @@ export default function PaymentModal({
             ))}
           </div>
         </div>
-
-        {/* Transaction / Cheque Reference (Only for Cheque or Other) */}
-        {(paymentMethod === 'cheque' || paymentMethod === 'other') && (
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              {paymentMethod === 'cheque' ? 'Cheque Number / Bank Ref *' : 'Transaction Reference / Details'}
-            </label>
-            <input
-              type="text"
-              value={transactionRef}
-              onChange={(e) => setTransactionRef(e.target.value)}
-              placeholder={paymentMethod === 'cheque' ? 'Enter cheque number & bank name' : 'Optional transaction reference'}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required={paymentMethod === 'cheque'}
-            />
-          </div>
-        )}
 
         {/* Remarks Input */}
         <div>

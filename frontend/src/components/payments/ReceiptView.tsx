@@ -4,7 +4,7 @@ import React from 'react';
 import { Printer, CheckCircle2, Zap, Share2, X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { PaymentRecord } from '@/types';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 
 import MahavitaranLogo from '@/components/ui/MahavitaranLogo';
 
@@ -20,6 +20,12 @@ export default function ReceiptView({ isOpen, paymentRecord, onClose }: ReceiptV
   const handlePrint = () => {
     window.print();
   };
+
+  const formattedMethod =
+    paymentRecord.payment_method?.toLowerCase() === 'upi' ? 'UPI / ONLINE'
+    : paymentRecord.payment_method?.toLowerCase() === 'cheque' ? 'CHEQUE'
+    : paymentRecord.payment_method?.toLowerCase() === 'cash' ? 'CASH'
+    : paymentRecord.payment_method?.toUpperCase() || 'OTHER';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Mahavitaran Collection Receipt" maxWidth="max-w-lg">
@@ -46,7 +52,7 @@ export default function ReceiptView({ isOpen, paymentRecord, onClose }: ReceiptV
             </div>
             <div className="text-right">
               <p className="text-[10px] text-slate-500 uppercase font-semibold">Date & Time</p>
-              <p className="font-semibold text-slate-800">{formatDate(paymentRecord.created_at)}</p>
+              <p className="font-semibold text-slate-800">{formatDateTime(paymentRecord.created_at)}</p>
             </div>
           </div>
 
@@ -84,7 +90,7 @@ export default function ReceiptView({ isOpen, paymentRecord, onClose }: ReceiptV
             </div>
             <div className="flex justify-between pt-1">
               <span className="text-slate-500">Payment Mode:</span>
-              <span className="font-bold uppercase text-slate-800">{paymentRecord.payment_method}</span>
+              <span className="font-bold uppercase text-slate-800">{formattedMethod}</span>
             </div>
             {paymentRecord.transaction_reference && (
               <div className="flex justify-between">

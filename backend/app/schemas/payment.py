@@ -6,17 +6,11 @@ class PaymentCollectRequest(BaseModel):
     customer_id: str
     meter_id: Optional[str] = None
     amount: float = Field(..., gt=0, description="Amount collected must be greater than zero")
-    payment_method: str = Field(..., description="cash, upi, online, or other")
+    payment_method: str = Field(..., description="cash, upi, online, cheque, or other")
     transaction_reference: Optional[str] = None
     remarks: Optional[str] = None
     collection_latitude: Optional[float] = None
     collection_longitude: Optional[float] = None
-
-    @model_validator(mode='after')
-    def validate_reference(self):
-        if self.payment_method.lower() in ["upi", "online", "other"] and not self.transaction_reference:
-            raise ValueError(f"Transaction reference is required for payment method: {self.payment_method}")
-        return self
 
 class PaymentResponse(BaseModel):
     id: str

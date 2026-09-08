@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Search, Users, Gauge, Filter, DollarSign, AlertCircle } from 'lucide-react';
+import { X, Search, Users, Gauge, DollarSign, AlertCircle } from 'lucide-react';
 import { Customer } from '@/types';
 import { customerService } from '@/services/customerService';
 import { formatCurrency } from '@/utils/formatters';
@@ -44,7 +44,7 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
 
   if (!isOpen) return null;
 
-  // Filter customers based on search query & status filter
+  // Filter customers based on search query & card mode (Assigned, Pending, or Paid/Completed)
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =
       !search.trim() ||
@@ -53,13 +53,36 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
       c.meter_number.toLowerCase().includes(search.toLowerCase()) ||
       c.address.toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus = !statusFilter || c.status === statusFilter;
+    if (!matchesSearch) return false;
 
-    return matchesSearch && matchesStatus;
+    if (statusFilter === 'pending') {
+      return c.pending_amount > 0 || c.status !== 'paid';
+    }
+
+    if (statusFilter === 'paid') {
+      return c.status === 'paid' || c.pending_amount <= 0;
+    }
+
+    // Default '' mode: Show all assigned customers
+    return true;
   });
 
   const totalPendingSum = customers.reduce((acc, c) => acc + (c.pending_amount || 0), 0);
   const pendingCount = customers.filter((c) => c.pending_amount > 0).length;
+
+  const modalTitle =
+    statusFilter === 'pending'
+      ? 'Pending Customers Directory'
+      : statusFilter === 'paid'
+      ? 'Completed Collections'
+      : 'Assigned Customers Directory';
+
+  const modalHeaderBg =
+    statusFilter === 'pending'
+      ? 'bg-red-600'
+      : statusFilter === 'paid'
+      ? 'bg-emerald-600'
+      : 'bg-blue-600';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-5">
@@ -68,10 +91,10 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
         {/* Modal Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-600 text-white shadow-xs">
+            <div className={`p-2 rounded-lg text-white shadow-xs ${modalHeaderBg}`}>
               <Users className="w-4 h-4" />
             </div>
-            <h2 className="text-base font-bold text-slate-900 leading-none">Customer Directory</h2>
+            <h2 className="text-base font-bold text-slate-900 leading-none">{modalTitle}</h2>
           </div>
 
           <button
@@ -108,39 +131,17 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
           </div>
         </div>
 
-        {/* Controls: Search & Status Filters */}
-        <div className="p-3.5 border-b border-slate-200 bg-white flex flex-col sm:flex-row gap-3 items-center justify-between shrink-0">
-          <div className="relative w-full sm:w-80">
+        {/* Controls: Search */}
+        <div className="p-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
+          <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Meter ID, Consumer Name, ID..."
+              placeholder="Search Meter ID, Consumer Name, Customer ID..."
               className="w-full bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-xs rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>
-
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto custom-scrollbar text-xs pb-1 sm:pb-0">
-            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1" />
-            {[
-              { label: 'All', value: '' },
-              { label: 'Pending', value: 'pending' },
-              { label: 'Overdue', value: 'overdue' },
-              { label: 'Paid', value: 'paid' },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shrink-0 ${
-                  statusFilter === f.value
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
           </div>
         </div>
 

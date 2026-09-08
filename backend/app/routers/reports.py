@@ -24,40 +24,59 @@ async def get_field_performance_report(
     current_user: dict = Depends(get_current_user)
 ):
     # Find officer ID if user is field officer
-    officer_id = None
     officer_doc = await db.officers.find_one({
         "$or": [
             {"user_id": current_user["_id"]},
+            {"user_id": str(current_user["_id"])},
             {"email": current_user.get("email")}
         ]
     })
-    if officer_doc:
-        officer_id = officer_doc.get("officer_id")
 
-    cus_filter = {"assigned_officer_id": officer_id} if officer_id else {}
-    pmt_filter = {"officer_id": officer_id} if officer_id else {}
+    officer_id = officer_doc.get("officer_id") if officer_doc else None
+    user_id_str = str(current_user["_id"])
+
+    # Build query filters matching officer assignments and payments
+    if officer_id:
+        cus_filter = {
+            "$or": [
+                {"assigned_officer_id": officer_id},
+                {"uploaded_by_officer_id": officer_id},
+                {"assigned_officer_id": user_id_str},
+                {"uploaded_by_officer_id": user_id_str}
+            ]
+        }
+        pmt_filter = {
+            "$or": [
+                {"officer_id": officer_id},
+                {"officer_id": user_id_str}
+            ]
+        }
+    else:
+        cus_filter = {}
+        pmt_filter = {}
 
     # 1. Fetch Customers & Officers count
     all_customers = await db.customers.find(cus_filter).to_list(5000)
     total_assigned = len(all_customers)
     
-    # 2. Fetch Field Visits
+    # 2. Fetch Field Visits & Payments
     visit_docs = await db.field_visits.find(cus_filter).sort("date_time", -1).to_list(5000)
-    
-    # If no field_visits exist yet, fallback to constructing from db.payments & customers
-    if not visit_docs:
-        payment_docs = await db.payments.find(pmt_filter).sort("created_at", -1).to_list(5000)
+    payment_docs = await db.payments.find(pmt_filter).sort("created_at", -1).to_list(5000)
 
-        visit_docs = []
-        for p in payment_docs:
+    # Combine payments into visit records if not already in field_visits
+    existing_visit_ids = set(v.get("visit_id") for v in visit_docs if v.get("visit_id"))
+
+    for p in payment_docs:
+        pay_id = p.get("payment_id", str(p["_id"]))
+        if pay_id not in existing_visit_ids:
             visit_docs.append({
-                "visit_id": p.get("payment_id", str(p["_id"])),
-                "date_time": p.get("created_at", "26/8/2026 • 09:25 am"),
+                "visit_id": pay_id,
+                "date_time": p.get("created_at", ""),
                 "consumer_id": p.get("customer_id", "N/A"),
                 "meter_id": p.get("meter_number") or p.get("meter_id", "N/A"),
                 "status": "Payment Recovered",
                 "amount_collected": float(p.get("amount", 0.0)),
-                "officer_remarks": p.get("remarks") or "",
+                "officer_remarks": p.get("remarks") or "Payment collected",
                 "gps_position": f"{p.get('collection_latitude', 21.1458):.4f}, {p.get('collection_longitude', 79.0882):.4f}",
                 "ward_name": "Thote & Thakre Ward (Godhani-Koradi)"
             })

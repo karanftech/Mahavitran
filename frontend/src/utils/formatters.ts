@@ -22,6 +22,24 @@ export function formatDate(dateString?: string | null): string {
   }
 }
 
+export function formatDateTime(dateString?: string | null): string {
+  if (!dateString) return 'N/A';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch {
+    return dateString;
+  }
+}
+
 export function formatDistance(meters?: number | null): string {
   if (meters === undefined || meters === null || isNaN(meters)) return '0 m';
   if (meters < 1000) {

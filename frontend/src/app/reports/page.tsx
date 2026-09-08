@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Printer, Search, ChevronDown, CheckCircle, XCircle, PhoneCall, AlertCircle, HelpCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, formatDateTime } from '@/utils/formatters';
 
 interface FieldVisit {
   visit_id: string;
@@ -107,14 +107,14 @@ export default function ReportsPage() {
           <p className="text-xs font-bold text-slate-600 tracking-tight">Consumers Visited</p>
           <div className="flex items-baseline gap-1.5">
             <span className="text-3xl font-black text-slate-900">
-              {data?.kpis.consumers_visited_count ?? 6}
+              {data?.kpis.consumers_visited_count ?? 0}
             </span>
             <span className="text-slate-400 text-base font-semibold">
-              / {data?.kpis.total_assigned_consumers ?? 32}
+              / {data?.kpis.total_assigned_consumers ?? 0}
             </span>
           </div>
           <p className="text-xs text-slate-400 font-medium">
-            {data?.kpis.unvisited_consumers_remaining ?? 26} unvisited consumers remaining
+            {data?.kpis.unvisited_consumers_remaining ?? 0} unvisited consumers remaining
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export default function ReportsPage() {
         <div className="bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-2">
           <p className="text-xs font-bold text-slate-600 tracking-tight">Total Recovered</p>
           <p className="text-3xl font-black text-emerald-600">
-            {formatCurrency(data?.kpis.total_recovered ?? 20318.49)}
+            {formatCurrency(data?.kpis.total_recovered ?? 0)}
           </p>
           <p className="text-xs text-slate-400 font-medium">Total payment collected</p>
         </div>
@@ -131,7 +131,7 @@ export default function ReportsPage() {
         <div className="bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-2">
           <p className="text-xs font-bold text-slate-600 tracking-tight">Outstanding Balance</p>
           <p className="text-3xl font-black text-rose-600">
-            {formatCurrency(data?.kpis.outstanding_balance ?? 48127.26)}
+            {formatCurrency(data?.kpis.outstanding_balance ?? 0)}
           </p>
           <p className="text-xs text-slate-400 font-medium">Pending recovery in ward</p>
         </div>
@@ -140,7 +140,7 @@ export default function ReportsPage() {
         <div className="bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-2">
           <p className="text-xs font-bold text-slate-600 tracking-tight">Recovery Rate</p>
           <p className="text-3xl font-black text-blue-600">
-            {data?.kpis.recovery_rate ?? 29.7}%
+            {data?.kpis.recovery_rate ?? 0}%
           </p>
           <p className="text-xs text-slate-400 font-medium">Collection efficiency</p>
         </div>
@@ -154,7 +154,7 @@ export default function ReportsPage() {
           {/* Payment Recovered */}
           <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 text-center space-y-1">
             <span className="text-2xl font-black text-emerald-700">
-              {data?.breakdown?.['Payment Recovered'] ?? 7}
+              {data?.breakdown?.['Payment Recovered'] ?? 0}
             </span>
             <p className="text-xs font-bold text-emerald-800">Payment Recovered</p>
           </div>
@@ -162,7 +162,7 @@ export default function ReportsPage() {
           {/* Not Recovered */}
           <div className="bg-rose-50/60 border border-rose-200/80 rounded-xl p-4 text-center space-y-1">
             <span className="text-2xl font-black text-rose-600">
-              {data?.breakdown?.['Not Recovered'] ?? 2}
+              {data?.breakdown?.['Not Recovered'] ?? 0}
             </span>
             <p className="text-xs font-bold text-rose-700">Not Recovered</p>
           </div>
@@ -207,7 +207,7 @@ export default function ReportsPage() {
         <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              Field Visit History ({data?.visits.length ?? 9})
+              Field Visit History ({data?.visits?.length ?? 0})
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               Chronological log of visits performed in {data?.ward_name || 'Thote & Thakre Ward (Godhani-Koradi)'}.
@@ -268,7 +268,7 @@ export default function ReportsPage() {
                     <tr key={visit.visit_id} className="hover:bg-slate-50/60 transition-colors">
                       {/* Date & Time */}
                       <td className="py-3.5 px-5 text-slate-500 font-medium whitespace-nowrap">
-                        {visit.date_time}
+                        {formatDateTime(visit.date_time)}
                       </td>
 
                       {/* Consumer ID */}

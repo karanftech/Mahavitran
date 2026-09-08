@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -39,8 +39,8 @@ class PaymentService:
         new_pending = current_pending - collected_amount
         new_status = "paid" if new_pending <= 0.01 else "partially_paid"
 
-        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        today_date_str = datetime.utcnow().strftime("%Y%m%d")
+        now_str = datetime.now(timezone.utc).isoformat()
+        today_date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         
         # 3. Create Payment Transaction Record
         payment_id = f"PAY-{uuid4().hex[:8].upper()}"

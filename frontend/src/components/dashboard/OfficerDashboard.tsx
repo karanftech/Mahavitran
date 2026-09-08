@@ -202,14 +202,30 @@ export default function OfficerDashboard() {
           </p>
         </button>
 
-        {/* Card 4: Completed Collections */}
-        <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-1">
-          <div className="w-8 h-8 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
-            <CheckCircle2 className="w-4 h-4" />
+        {/* Card 4: Completed Collections (Clickable) */}
+        <button
+          onClick={() => {
+            setModalFilter('paid');
+            setIsAssignedModalOpen(true);
+          }}
+          className="bg-white border border-slate-200 hover:border-emerald-500 p-4 rounded-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          title="Click to view completed customer collections"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-8 h-8 rounded bg-emerald-50 group-hover:bg-emerald-600 text-emerald-600 group-hover:text-white transition-colors flex items-center justify-center mb-1">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 group-hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 transition-colors flex items-center gap-0.5 shrink-0 whitespace-nowrap">
+              View <ChevronRight className="w-3 h-3 inline" />
+            </span>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase font-semibold">Completed Collections</p>
-          <p className="text-2xl font-bold text-emerald-600">{metrics.number_of_completed_collections}</p>
-        </div>
+          <p className="text-[11px] text-slate-500 group-hover:text-emerald-900 uppercase font-semibold transition-colors">
+            Completed Collections
+          </p>
+          <p className="text-2xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
+            {metrics.number_of_completed_collections}
+          </p>
+        </button>
       </div>
 
 
