@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Dict, Any, Optional
+from collections import defaultdict
 from app.schemas.customer import NearbyCustomerResponse, CustomerResponse, MeterSchema
 from app.services.maps_service import haversine_distance
 
@@ -24,24 +25,40 @@ class CustomerService:
 
         # Fetch candidate customers
         customers = await db.customers.find(query).to_list(1000)
+        if not customers:
+            return []
+
+        # Batch fetch meters for all candidate customers
+        customer_ids = [cus.get("customer_id") for cus in customers if cus.get("customer_id")]
+        all_meters_docs = await db.meters.find({"customer_id": {"$in": customer_ids}}).to_list(5000)
+        
+        meters_by_customer = defaultdict(list)
+        for m in all_meters_docs:
+            cid = m.get("customer_id")
+            if cid:
+                meters_by_customer[cid].append(
+                    MeterSchema(
+                        meter_id=m.get("meter_id", ""),
+                        meter_number=m.get("meter_number", ""),
+                        customer_id=m.get("customer_id", ""),
+                        latitude=float(m.get("latitude", 0.0)),
+                        longitude=float(m.get("longitude", 0.0))
+                    )
+                )
+
+        # Batch fetch assigned officers
+        officer_ids = list(set([cus.get("assigned_officer_id") for cus in customers if cus.get("assigned_officer_id")]))
+        officer_names_map = {}
+        if officer_ids:
+            officers_docs = await db.officers.find({"officer_id": {"$in": officer_ids}}).to_list(1000)
+            officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
 
         nearby_list = []
         for cus in customers:
             c_lat = float(cus.get("latitude", 0.0))
             c_lng = float(cus.get("longitude", 0.0))
-
-            # Fetch meters for customer
-            meters_docs = await db.meters.find({"customer_id": cus.get("customer_id")}).to_list(10)
-            meters = [
-                MeterSchema(
-                    meter_id=m.get("meter_id", ""),
-                    meter_number=m.get("meter_number", ""),
-                    customer_id=m.get("customer_id", ""),
-                    latitude=float(m.get("latitude", 0.0)),
-                    longitude=float(m.get("longitude", 0.0))
-                )
-                for m in meters_docs
-            ]
+            cid = cus.get("customer_id")
+            meters = meters_by_customer.get(cid, [])
 
             # If customer coordinates are 0 or missing, fallback to first valid meter location
             if (c_lat == 0.0 or c_lng == 0.0) and meters:
@@ -54,17 +71,11 @@ class CustomerService:
             if dist <= radius_meters:
                 # Calculate duration (riding speed ~25km/h => 6.94 m/s + 1.35 urban detour factor)
                 dur_mins = round((dist * 1.35 / 6.94) / 60.0, 1)
-
-                # Resolve assigned officer name
-                officer_name = None
-                if cus.get("assigned_officer_id"):
-                    off_doc = await db.officers.find_one({"officer_id": cus.get("assigned_officer_id")})
-                    if off_doc:
-                        officer_name = off_doc.get("full_name")
+                officer_name = officer_names_map.get(cus.get("assigned_officer_id"))
 
                 nearby_item = NearbyCustomerResponse(
                     id=str(cus.get("_id")),
-                    customer_id=cus.get("customer_id"),
+                    customer_id=cid,
                     name=cus.get("name"),
                     meter_number=cus.get("meter_number", ""),
                     phone=cus.get("phone", ""),
@@ -90,3 +101,4 @@ class CustomerService:
         # Sort by distance primarily
         nearby_list.sort(key=lambda x: x.distance_meters)
         return nearby_list
+

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Optional, Dict, Any
+from collections import defaultdict
 from datetime import datetime
 from uuid import uuid4
 
@@ -83,31 +84,43 @@ async def list_customers(
 
     customers_docs = await db.customers.find(query).skip(skip).limit(limit).to_list(limit)
 
+    if not customers_docs:
+        return []
+
+    # Batch fetch meters
+    customer_ids = [cus.get("customer_id") for cus in customers_docs if cus.get("customer_id")]
+    all_meters_docs = await db.meters.find({"customer_id": {"$in": customer_ids}}).to_list(5000)
+    meters_by_customer = defaultdict(list)
+    for m in all_meters_docs:
+        cid = m.get("customer_id")
+        if cid:
+            meters_by_customer[cid].append(
+                MeterSchema(
+                    meter_id=m.get("meter_id", ""),
+                    meter_number=m.get("meter_number", ""),
+                    customer_id=m.get("customer_id", ""),
+                    latitude=float(m.get("latitude", 0.0)),
+                    longitude=float(m.get("longitude", 0.0))
+                )
+            )
+
+    # Batch fetch officers
+    officer_ids = list(set([cus.get("assigned_officer_id") for cus in customers_docs if cus.get("assigned_officer_id")]))
+    officer_names_map = {}
+    if officer_ids:
+        officers_docs = await db.officers.find({"officer_id": {"$in": officer_ids}}).to_list(1000)
+        officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
+
     results = []
     for cus in customers_docs:
-        # Fetch associated meters
-        meters_docs = await db.meters.find({"customer_id": cus.get("customer_id")}).to_list(10)
-        meters = [
-            MeterSchema(
-                meter_id=m.get("meter_id", ""),
-                meter_number=m.get("meter_number", ""),
-                customer_id=m.get("customer_id", ""),
-                latitude=float(m.get("latitude", 0.0)),
-                longitude=float(m.get("longitude", 0.0))
-            )
-            for m in meters_docs
-        ]
-
-        officer_name = None
-        if cus.get("assigned_officer_id"):
-            off_doc = await db.officers.find_one({"officer_id": cus.get("assigned_officer_id")})
-            if off_doc:
-                officer_name = off_doc.get("full_name")
+        cid = cus.get("customer_id")
+        meters = meters_by_customer.get(cid, [])
+        officer_name = officer_names_map.get(cus.get("assigned_officer_id"))
 
         results.append(
             CustomerResponse(
                 id=str(cus["_id"]),
-                customer_id=cus.get("customer_id"),
+                customer_id=cid,
                 name=cus.get("name"),
                 meter_number=cus.get("meter_number", ""),
                 phone=cus.get("phone", ""),

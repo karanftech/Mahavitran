@@ -49,17 +49,13 @@ export default function OfficerDashboard() {
     }
   };
 
-  // Initial load only – show full skeleton
-  useEffect(() => {
-    fetchDashboard(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Fetch on mount and silently update if GPS grid coordinate changes significantly
+  const hasFetched = React.useRef(false);
 
-  // Background GPS-based refresh – silent (no skeleton flash)
   useEffect(() => {
-    if (metrics !== null) {
-      fetchDashboard(false);
-    }
+    const showLoader = !hasFetched.current;
+    fetchDashboard(showLoader);
+    hasFetched.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordKey]);
 
