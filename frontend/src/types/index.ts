@@ -16,7 +16,11 @@ export interface Meter {
   customer_id: string;
   latitude: number;
   longitude: number;
+  assigned_officer_id?: string;
+  assigned_officer_name?: string;
+  uploaded_by_officer_id?: string;
 }
+
 
 export interface Customer {
   id: string;
@@ -35,12 +39,14 @@ export interface Customer {
   priority?: 'normal' | 'high' | 'critical';
   assigned_officer_id?: string;
   assigned_officer_name?: string;
+  uploaded_by_officer_id?: string;
   meters: Meter[];
   distance_meters?: number;
   estimated_duration_mins?: number;
   created_at?: string;
   updated_at?: string;
 }
+
 
 export interface NearbyCustomer extends Customer {
   distance_meters: number;

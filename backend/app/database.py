@@ -42,6 +42,7 @@ async def init_db_indexes():
         # Customers indexes
         await db.customers.create_index("customer_id", unique=True)
         await db.customers.create_index("assigned_officer_id")
+        await db.customers.create_index("uploaded_by_officer_id")
         await db.customers.create_index([("location", "2dsphere")])
         await db.customers.create_index("status")
         await db.customers.create_index("area")
@@ -49,6 +50,10 @@ async def init_db_indexes():
         # Meters indexes
         await db.meters.create_index("meter_number", unique=True)
         await db.meters.create_index("customer_id")
+        await db.meters.create_index("assigned_officer_id")
+        await db.meters.create_index("uploaded_by_officer_id")
+
+
 
 
         # Payments indexes

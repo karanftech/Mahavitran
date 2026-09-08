@@ -40,3 +40,8 @@ class OfficerResponse(BaseModel):
 class CustomerAssignmentRequest(BaseModel):
     officer_id: str
     customer_ids: List[str]
+
+class MeterAssignmentRequest(BaseModel):
+    officer_id: str
+    meter_ids: List[str]
+

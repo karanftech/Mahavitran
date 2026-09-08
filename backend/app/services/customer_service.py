@@ -16,12 +16,17 @@ class CustomerService:
         officer_id: Optional[str] = None,
     ) -> List[NearbyCustomerResponse]:
         query: Dict[str, Any] = {}
-        # All customers in system are accessible/assigned to the field officer for now
         if status_filter:
             query["status"] = status_filter
         else:
             # By default exclude fully paid customers for field officer collections
             query["status"] = {"$ne": "paid"}
+
+        if officer_id:
+            query["$or"] = [
+                {"assigned_officer_id": officer_id},
+                {"uploaded_by_officer_id": officer_id}
+            ]
 
         # Fetch candidate customers
         customers = await db.customers.find(query).to_list(1000)
@@ -31,10 +36,29 @@ class CustomerService:
         # Batch fetch meters for all candidate customers
         customer_ids = [cus.get("customer_id") for cus in customers if cus.get("customer_id")]
         all_meters_docs = await db.meters.find({"customer_id": {"$in": customer_ids}}).to_list(5000)
-        
+
+        # Collect all officer IDs (from customers AND meters)
+        all_officer_ids = set()
+        for cus in customers:
+            if cus.get("assigned_officer_id"):
+                all_officer_ids.add(cus.get("assigned_officer_id"))
+            if cus.get("uploaded_by_officer_id"):
+                all_officer_ids.add(cus.get("uploaded_by_officer_id"))
+        for m in all_meters_docs:
+            if m.get("assigned_officer_id"):
+                all_officer_ids.add(m.get("assigned_officer_id"))
+            if m.get("uploaded_by_officer_id"):
+                all_officer_ids.add(m.get("uploaded_by_officer_id"))
+
+        officer_names_map = {}
+        if all_officer_ids:
+            officers_docs = await db.officers.find({"officer_id": {"$in": list(all_officer_ids)}}).to_list(1000)
+            officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
+
         meters_by_customer = defaultdict(list)
         for m in all_meters_docs:
             cid = m.get("customer_id")
+            m_off_id = m.get("assigned_officer_id")
             if cid:
                 meters_by_customer[cid].append(
                     MeterSchema(
@@ -42,16 +66,14 @@ class CustomerService:
                         meter_number=m.get("meter_number", ""),
                         customer_id=m.get("customer_id", ""),
                         latitude=float(m.get("latitude", 0.0)),
-                        longitude=float(m.get("longitude", 0.0))
+                        longitude=float(m.get("longitude", 0.0)),
+                        assigned_officer_id=m_off_id,
+                        assigned_officer_name=officer_names_map.get(m_off_id) if m_off_id else None,
+                        uploaded_by_officer_id=m.get("uploaded_by_officer_id")
                     )
                 )
 
-        # Batch fetch assigned officers
-        officer_ids = list(set([cus.get("assigned_officer_id") for cus in customers if cus.get("assigned_officer_id")]))
-        officer_names_map = {}
-        if officer_ids:
-            officers_docs = await db.officers.find({"officer_id": {"$in": officer_ids}}).to_list(1000)
-            officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
+
 
         nearby_list = []
         for cus in customers:
@@ -90,7 +112,9 @@ class CustomerService:
                     priority=cus.get("priority", "normal"),
                     assigned_officer_id=cus.get("assigned_officer_id"),
                     assigned_officer_name=officer_name,
+                    uploaded_by_officer_id=cus.get("uploaded_by_officer_id"),
                     meters=meters,
+
                     created_at=str(cus.get("created_at", "")),
                     updated_at=str(cus.get("updated_at", "")),
                     distance_meters=round(dist, 1),

@@ -1,6 +1,7 @@
 import io
 import csv
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
+
 from datetime import datetime, timedelta
 from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -108,7 +109,11 @@ class CustomerImportService:
             raise HTTPException(status_code=400, detail="Unsupported file format. Please upload a .csv or .xlsx file.")
 
     @staticmethod
-    async def import_customers(file: UploadFile, db: AsyncIOMotorDatabase) -> Dict[str, Any]:
+    async def import_customers(
+        file: UploadFile, 
+        db: AsyncIOMotorDatabase, 
+        uploader_officer_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Process rows, validate schema, and upsert documents into MongoDB."""
         headers, data_rows = await CustomerImportService.parse_file_rows(file)
         mapping = CustomerImportService.get_column_mapping(headers)
@@ -185,6 +190,8 @@ class CustomerImportService:
                     "coordinates": [lng, lat]
                 }
 
+                officer_id_to_assign = uploader_officer_id or ("OFF-1001" if (row_idx % 2 == 0) else "OFF-1002")
+
                 customer_doc = {
                     "customer_id": customer_id,
                     "name": name,
@@ -200,7 +207,8 @@ class CustomerImportService:
                     "due_date": default_due_date,
                     "status": status,
                     "priority": priority,
-                    "assigned_officer_id": "OFF-1001" if (row_idx % 2 == 0) else "OFF-1002",
+                    "assigned_officer_id": officer_id_to_assign,
+                    "uploaded_by_officer_id": uploader_officer_id or officer_id_to_assign,
                     "updated_at": now_str
                 }
 
@@ -220,8 +228,12 @@ class CustomerImportService:
                     "meter_number": meter_number,
                     "customer_id": customer_id,
                     "latitude": lat,
-                    "longitude": lng
+                    "longitude": lng,
+                    "assigned_officer_id": customer_doc.get("assigned_officer_id"),
+                    "uploaded_by_officer_id": customer_doc.get("uploaded_by_officer_id")
                 }
+
+
                 await db.meters.update_one(
                     {"customer_id": customer_id, "meter_number": meter_number},
                     {"$set": meter_doc},

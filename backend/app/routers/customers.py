@@ -54,9 +54,24 @@ async def list_customers(
 ):
     query: Dict[str, Any] = {}
 
-    # All customers in the system are assigned/accessible to the field officer
     if assigned_officer_id:
-        query["assigned_officer_id"] = assigned_officer_id
+        query["$or"] = [
+            {"assigned_officer_id": assigned_officer_id},
+            {"uploaded_by_officer_id": assigned_officer_id}
+        ]
+    elif not all_officers:
+        officer_doc = await db.officers.find_one({
+            "$or": [
+                {"user_id": current_user["_id"]},
+                {"email": current_user.get("email")}
+            ]
+        })
+        if officer_doc:
+            off_id = officer_doc.get("officer_id")
+            query["$or"] = [
+                {"assigned_officer_id": off_id},
+                {"uploaded_by_officer_id": off_id}
+            ]
 
     if area:
         query["area"] = area
@@ -73,14 +88,17 @@ async def list_customers(
         query["pending_amount"] = amt_query
 
     if search:
-        regex = {"$regex": search, "$options": "i"}
-        query["$or"] = [
-            {"name": regex},
-            {"customer_id": regex},
-            {"meter_number": regex},
-            {"address": regex},
-            {"phone": regex}
+        search_or = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"customer_id": {"$regex": search, "$options": "i"}},
+            {"meter_number": {"$regex": search, "$options": "i"}},
+            {"address": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}}
         ]
+        if "$or" in query:
+            query["$and"] = [{"$or": query.pop("$or")}, {"$or": search_or}]
+        else:
+            query["$or"] = search_or
 
     customers_docs = await db.customers.find(query).skip(skip).limit(limit).to_list(limit)
 
@@ -90,9 +108,29 @@ async def list_customers(
     # Batch fetch meters
     customer_ids = [cus.get("customer_id") for cus in customers_docs if cus.get("customer_id")]
     all_meters_docs = await db.meters.find({"customer_id": {"$in": customer_ids}}).to_list(5000)
+
+    # Collect all officer IDs (from customers AND meters)
+    all_officer_ids = set()
+    for cus in customers_docs:
+        if cus.get("assigned_officer_id"):
+            all_officer_ids.add(cus.get("assigned_officer_id"))
+        if cus.get("uploaded_by_officer_id"):
+            all_officer_ids.add(cus.get("uploaded_by_officer_id"))
+    for m in all_meters_docs:
+        if m.get("assigned_officer_id"):
+            all_officer_ids.add(m.get("assigned_officer_id"))
+        if m.get("uploaded_by_officer_id"):
+            all_officer_ids.add(m.get("uploaded_by_officer_id"))
+
+    officer_names_map = {}
+    if all_officer_ids:
+        officers_docs = await db.officers.find({"officer_id": {"$in": list(all_officer_ids)}}).to_list(1000)
+        officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
+
     meters_by_customer = defaultdict(list)
     for m in all_meters_docs:
         cid = m.get("customer_id")
+        m_off_id = m.get("assigned_officer_id")
         if cid:
             meters_by_customer[cid].append(
                 MeterSchema(
@@ -100,16 +138,13 @@ async def list_customers(
                     meter_number=m.get("meter_number", ""),
                     customer_id=m.get("customer_id", ""),
                     latitude=float(m.get("latitude", 0.0)),
-                    longitude=float(m.get("longitude", 0.0))
+                    longitude=float(m.get("longitude", 0.0)),
+                    assigned_officer_id=m_off_id,
+                    assigned_officer_name=officer_names_map.get(m_off_id) if m_off_id else None,
+                    uploaded_by_officer_id=m.get("uploaded_by_officer_id")
                 )
             )
 
-    # Batch fetch officers
-    officer_ids = list(set([cus.get("assigned_officer_id") for cus in customers_docs if cus.get("assigned_officer_id")]))
-    officer_names_map = {}
-    if officer_ids:
-        officers_docs = await db.officers.find({"officer_id": {"$in": officer_ids}}).to_list(1000)
-        officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
 
     results = []
     for cus in customers_docs:
@@ -135,11 +170,13 @@ async def list_customers(
                 priority=cus.get("priority", "normal"),
                 assigned_officer_id=cus.get("assigned_officer_id"),
                 assigned_officer_name=officer_name,
+                uploaded_by_officer_id=cus.get("uploaded_by_officer_id"),
                 meters=meters,
                 created_at=str(cus.get("created_at", "")),
                 updated_at=str(cus.get("updated_at", ""))
             )
         )
+
     return results
 
 @router.post("", response_model=CustomerResponse)
@@ -158,6 +195,17 @@ async def create_customer(
         "coordinates": [request.longitude, request.latitude]
     }
 
+    assigned_officer_id = request.assigned_officer_id
+    if not assigned_officer_id:
+        off_doc = await db.officers.find_one({
+            "$or": [
+                {"user_id": current_user["_id"]},
+                {"email": current_user.get("email")}
+            ]
+        })
+        if off_doc:
+            assigned_officer_id = off_doc.get("officer_id")
+
     customer_doc = {
         "customer_id": request.customer_id,
         "name": request.name,
@@ -173,7 +221,8 @@ async def create_customer(
         "due_date": request.due_date,
         "status": request.status or ("overdue" if (request.pending_amount or 0) > 3000 else ("pending" if (request.pending_amount or 0) > 0 else "paid")),
         "priority": request.priority or ("high" if (request.pending_amount or 0) > 5000 else "normal"),
-        "assigned_officer_id": request.assigned_officer_id,
+        "assigned_officer_id": assigned_officer_id,
+        "uploaded_by_officer_id": request.uploaded_by_officer_id or assigned_officer_id,
         "created_at": now_str,
         "updated_at": now_str
     }
@@ -187,9 +236,17 @@ async def create_customer(
         "meter_number": request.meter_number,
         "customer_id": request.customer_id,
         "latitude": request.latitude,
-        "longitude": request.longitude
+        "longitude": request.longitude,
+        "assigned_officer_id": assigned_officer_id,
+        "uploaded_by_officer_id": customer_doc["uploaded_by_officer_id"]
     }
     await db.meters.insert_one(meter_doc)
+
+    officer_name = None
+    if assigned_officer_id:
+        off_doc = await db.officers.find_one({"officer_id": assigned_officer_id})
+        if off_doc:
+            officer_name = off_doc.get("full_name")
 
     return CustomerResponse(
         id=str(result.inserted_id),
@@ -206,19 +263,25 @@ async def create_customer(
         due_date=customer_doc["due_date"],
         status=customer_doc["status"],
         priority=customer_doc["priority"],
-        assigned_officer_id=request.assigned_officer_id,
+        assigned_officer_id=assigned_officer_id,
+        assigned_officer_name=officer_name,
+        uploaded_by_officer_id=customer_doc["uploaded_by_officer_id"],
         meters=[
             MeterSchema(
                 meter_id=meter_id,
                 meter_number=request.meter_number,
                 customer_id=request.customer_id,
                 latitude=request.latitude,
-                longitude=request.longitude
+                longitude=request.longitude,
+                assigned_officer_id=assigned_officer_id,
+                assigned_officer_name=officer_name,
+                uploaded_by_officer_id=customer_doc["uploaded_by_officer_id"]
             )
         ],
         created_at=now_str,
         updated_at=now_str
     )
+
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
 async def get_customer(
@@ -231,22 +294,38 @@ async def get_customer(
         raise HTTPException(status_code=404, detail="Customer not found")
 
     meters_docs = await db.meters.find({"customer_id": customer_id}).to_list(10)
-    meters = [
-        MeterSchema(
-            meter_id=m.get("meter_id", ""),
-            meter_number=m.get("meter_number", ""),
-            customer_id=m.get("customer_id", ""),
-            latitude=float(m.get("latitude", 0.0)),
-            longitude=float(m.get("longitude", 0.0))
-        )
-        for m in meters_docs
-    ]
-
-    officer_name = None
+    
+    # Collect all officer IDs from customer and meters
+    officer_ids = set()
     if cus.get("assigned_officer_id"):
-        off_doc = await db.officers.find_one({"officer_id": cus.get("assigned_officer_id")})
-        if off_doc:
-            officer_name = off_doc.get("full_name")
+        officer_ids.add(cus.get("assigned_officer_id"))
+    for m in meters_docs:
+        if m.get("assigned_officer_id"):
+            officer_ids.add(m.get("assigned_officer_id"))
+
+    officer_names_map = {}
+    if officer_ids:
+        officers = await db.officers.find({"officer_id": {"$in": list(officer_ids)}}).to_list(100)
+        officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers if o.get("officer_id")}
+
+    meters = []
+    for m in meters_docs:
+        m_off_id = m.get("assigned_officer_id")
+        meters.append(
+            MeterSchema(
+                meter_id=m.get("meter_id", ""),
+                meter_number=m.get("meter_number", ""),
+                customer_id=m.get("customer_id", ""),
+                latitude=float(m.get("latitude", 0.0)),
+                longitude=float(m.get("longitude", 0.0)),
+                assigned_officer_id=m_off_id,
+                assigned_officer_name=officer_names_map.get(m_off_id) if m_off_id else None,
+                uploaded_by_officer_id=m.get("uploaded_by_officer_id")
+            )
+        )
+
+    officer_name = officer_names_map.get(cus.get("assigned_officer_id"))
+
 
     return CustomerResponse(
         id=str(cus["_id"]),
@@ -265,10 +344,12 @@ async def get_customer(
         priority=cus.get("priority", "normal"),
         assigned_officer_id=cus.get("assigned_officer_id"),
         assigned_officer_name=officer_name,
+        uploaded_by_officer_id=cus.get("uploaded_by_officer_id"),
         meters=meters,
         created_at=str(cus.get("created_at", "")),
         updated_at=str(cus.get("updated_at", ""))
     )
+
 
 @router.post("/upload")
 async def upload_customers_bulk(
@@ -279,5 +360,17 @@ async def upload_customers_bulk(
     """Bulk import customer records from CSV or XLSX files."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded.")
-    return await CustomerImportService.import_customers(file=file, db=db)
+
+    officer_id = None
+    officer_doc = await db.officers.find_one({
+        "$or": [
+            {"user_id": current_user["_id"]},
+            {"email": current_user.get("email")}
+        ]
+    })
+    if officer_doc:
+        officer_id = officer_doc.get("officer_id")
+
+    return await CustomerImportService.import_customers(file=file, db=db, uploader_officer_id=officer_id)
+
 

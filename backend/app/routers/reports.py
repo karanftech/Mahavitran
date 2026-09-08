@@ -23,16 +23,31 @@ async def get_field_performance_report(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: dict = Depends(get_current_user)
 ):
+    # Find officer ID if user is field officer
+    officer_id = None
+    officer_doc = await db.officers.find_one({
+        "$or": [
+            {"user_id": current_user["_id"]},
+            {"email": current_user.get("email")}
+        ]
+    })
+    if officer_doc:
+        officer_id = officer_doc.get("officer_id")
+
+    cus_filter = {"assigned_officer_id": officer_id} if officer_id else {}
+    pmt_filter = {"officer_id": officer_id} if officer_id else {}
+
     # 1. Fetch Customers & Officers count
-    all_customers = await db.customers.find().to_list(5000)
+    all_customers = await db.customers.find(cus_filter).to_list(5000)
     total_assigned = len(all_customers)
     
     # 2. Fetch Field Visits
-    visit_docs = await db.field_visits.find().sort("date_time", -1).to_list(5000)
+    visit_docs = await db.field_visits.find(cus_filter).sort("date_time", -1).to_list(5000)
     
     # If no field_visits exist yet, fallback to constructing from db.payments & customers
     if not visit_docs:
-        payment_docs = await db.payments.find().sort("created_at", -1).to_list(5000)
+        payment_docs = await db.payments.find(pmt_filter).sort("created_at", -1).to_list(5000)
+
         visit_docs = []
         for p in payment_docs:
             visit_docs.append({

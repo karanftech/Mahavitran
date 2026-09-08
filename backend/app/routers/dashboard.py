@@ -33,40 +33,56 @@ async def get_officer_dashboard(
     try:
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Run all independent DB queries concurrently
+        # 1. Fetch officer record first
+        officer_doc = await db.officers.find_one({
+            "$or": [
+                {"user_id": current_user["_id"]},
+                {"email": current_user.get("email")}
+            ]
+        })
+        officer_id = officer_doc.get("officer_id") if officer_doc else None
+
+        # Build query filters for officer isolation
+        cus_filter = {"$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]} if officer_id else {}
+        pending_match = {"status": {"$in": ["pending", "overdue", "partially_paid"]}}
+        paid_match = {"status": "paid"}
+        if officer_id:
+            officer_or = [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]
+            pending_match["$or"] = officer_or
+            paid_match["$or"] = officer_or
+
+        pmt_filter = {"officer_id": officer_id} if officer_id else {}
+        today_pmt_match = {"created_at": {"$gte": today_start}}
+        if officer_id:
+            today_pmt_match["officer_id"] = officer_id
+
+
+        # Run independent DB queries concurrently with officer filters
         (
-            officer_doc,
             total_assigned,
             pending_agg,
             paid_count,
             total_payments_count,
             today_agg,
         ) = await asyncio.gather(
-            # Officer record
-            db.officers.find_one({
-                "$or": [
-                    {"user_id": current_user["_id"]},
-                    {"email": current_user.get("email")}
-                ]
-            }),
-            # Total customer count (no document fetch needed)
-            db.customers.count_documents({}),
-            # Pending amount + count via aggregation (no full doc fetch)
+            # Total customer count for officer
+            db.customers.count_documents(cus_filter),
+            # Pending amount + count via aggregation for officer
             db.customers.aggregate([
-                {"$match": {"status": {"$in": ["pending", "overdue", "partially_paid"]}}},
+                {"$match": pending_match},
                 {"$group": {
                     "_id": None,
                     "total_amount": {"$sum": "$pending_amount"},
                     "count": {"$sum": 1}
                 }}
             ]).to_list(1),
-            # Paid customers count
-            db.customers.count_documents({"status": "paid"}),
-            # Total payments count
-            db.payments.count_documents({}),
-            # Today's payment aggregation
+            # Paid customers count for officer
+            db.customers.count_documents(paid_match),
+            # Total payments count for officer
+            db.payments.count_documents(pmt_filter),
+            # Today's payment aggregation for officer
             db.payments.aggregate([
-                {"$match": {"created_at": {"$gte": today_start}}},
+                {"$match": today_pmt_match},
                 {"$group": {
                     "_id": None,
                     "total_amount": {"$sum": "$amount"},
@@ -75,7 +91,6 @@ async def get_officer_dashboard(
             ]).to_list(1),
         )
 
-        officer_id = officer_doc.get("officer_id") if officer_doc else None
 
         # Extract aggregation results
         pending_result = pending_agg[0] if pending_agg else {}

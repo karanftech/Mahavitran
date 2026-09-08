@@ -8,6 +8,10 @@ class MeterSchema(BaseModel):
     customer_id: str
     latitude: float
     longitude: float
+    assigned_officer_id: Optional[str] = None
+    assigned_officer_name: Optional[str] = None
+    uploaded_by_officer_id: Optional[str] = None
+
 
 class CustomerCreate(BaseModel):
     customer_id: str
@@ -24,6 +28,7 @@ class CustomerCreate(BaseModel):
     status: Optional[str] = "pending"
     priority: Optional[str] = "normal"
     assigned_officer_id: Optional[str] = None
+    uploaded_by_officer_id: Optional[str] = None
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -53,6 +58,7 @@ class CustomerResponse(BaseModel):
     priority: str = "normal"  # normal, high, critical
     assigned_officer_id: Optional[str] = None
     assigned_officer_name: Optional[str] = None
+    uploaded_by_officer_id: Optional[str] = None
     meters: List[MeterSchema] = []
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -60,3 +66,4 @@ class CustomerResponse(BaseModel):
 class NearbyCustomerResponse(CustomerResponse):
     distance_meters: float
     estimated_duration_mins: float
+
