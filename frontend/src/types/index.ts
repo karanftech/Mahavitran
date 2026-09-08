@@ -36,6 +36,8 @@ export interface Customer {
   assigned_officer_id?: string;
   assigned_officer_name?: string;
   meters: Meter[];
+  distance_meters?: number;
+  estimated_duration_mins?: number;
   created_at?: string;
   updated_at?: string;
 }
