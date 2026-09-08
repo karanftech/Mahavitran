@@ -9,6 +9,7 @@ interface FieldVisit {
   visit_id: string;
   date_time: string;
   consumer_id: string;
+  consumer_name?: string;
   meter_id: string;
   status: string;
   amount_collected: number;
@@ -100,8 +101,25 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      {/* Top 4 KPI Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Print-Only Official Report Header */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-4 text-slate-900">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight uppercase">MAHAVITARAN</h1>
+            <p className="text-[11px] font-semibold text-slate-700">Maharashtra State Electricity Distribution Co. Ltd.</p>
+            <h2 className="text-sm font-bold text-slate-900 mt-2">Field Visit & Collection History Report</h2>
+          </div>
+          <div className="text-right text-[11px] space-y-0.5">
+            <p><span className="font-semibold text-slate-600">Ward:</span> <span className="font-bold">{data?.ward_name || 'Thote & Thakre Ward'}</span></p>
+            <p><span className="font-semibold text-slate-600">Report Date:</span> <span className="font-bold">{formatDateTime(new Date().toISOString())}</span></p>
+            <p><span className="font-semibold text-slate-600">Total Visits:</span> <span className="font-bold">{data?.visits?.length ?? 0}</span></p>
+            <p><span className="font-semibold text-slate-600">Total Recovered:</span> <span className="font-bold text-emerald-800">{formatCurrency(data?.kpis?.total_recovered ?? 0)}</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* Top 4 KPI Metrics Grid (Screen Only) */}
+      <div className="print:hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Consumers Visited */}
         <div className="bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-2">
           <p className="text-xs font-bold text-slate-600 tracking-tight">Consumers Visited</p>
@@ -146,8 +164,8 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Field Visit Outcome Breakdown Section */}
-      <div className="bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-4">
+      {/* Field Visit Outcome Breakdown Section (Screen Only) */}
+      <div className="print:hidden bg-white border border-slate-200/80 p-5 rounded-xl shadow-2xs space-y-4">
         <h3 className="text-sm font-bold text-slate-900">Field Visit Outcome Breakdown</h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -252,8 +270,7 @@ export default function ReportsPage() {
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-3 px-5">DATE & TIME</th>
-                <th className="py-3 px-5">CONSUMER ID</th>
-                <th className="py-3 px-5">METER ID</th>
+                <th className="py-3 px-5">CONSUMER NAME & METER ID</th>
                 <th className="py-3 px-5">STATUS</th>
                 <th className="py-3 px-5">AMOUNT COLLECTED</th>
                 <th className="py-3 px-5">OFFICER REMARKS</th>
@@ -271,14 +288,12 @@ export default function ReportsPage() {
                         {formatDateTime(visit.date_time)}
                       </td>
 
-                      {/* Consumer ID */}
-                      <td className="py-3.5 px-5 font-extrabold text-slate-900 whitespace-nowrap">
-                        {visit.consumer_id}
-                      </td>
-
-                      {/* Meter ID */}
-                      <td className="py-3.5 px-5 text-slate-600 font-mono text-[11px] whitespace-nowrap">
-                        {visit.meter_id}
+                      {/* Consumer Name & Meter ID */}
+                      <td className="py-3.5 px-5 whitespace-nowrap">
+                        <p className="font-extrabold text-slate-900 text-xs">{visit.consumer_name || visit.consumer_id}</p>
+                        <p className="text-[10.5px] text-slate-500 font-mono">
+                          Meter: <span className="font-semibold text-slate-700">{visit.meter_id}</span>
+                        </p>
                       </td>
 
                       {/* Status Badge */}
@@ -319,7 +334,7 @@ export default function ReportsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500 font-medium">
+                  <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">
                     No field visit records found matching your filter criteria.
                   </td>
                 </tr>

@@ -63,16 +63,36 @@ async def get_field_performance_report(
     visit_docs = await db.field_visits.find(cus_filter).sort("date_time", -1).to_list(5000)
     payment_docs = await db.payments.find(pmt_filter).sort("created_at", -1).to_list(5000)
 
+    # Customer lookup dictionary for consumer names
+    cus_name_map = {}
+    
+    # Collect all customer IDs from visits and payments
+    all_c_ids = set(c.get("customer_id") for c in all_customers if c.get("customer_id"))
+    for p in payment_docs:
+        if p.get("customer_id"):
+            all_c_ids.add(p.get("customer_id"))
+    for v in visit_docs:
+        if v.get("consumer_id"):
+            all_c_ids.add(v.get("consumer_id"))
+
+    if all_c_ids:
+        c_docs = await db.customers.find({"customer_id": {"$in": list(all_c_ids)}}).to_list(5000)
+        for c in c_docs:
+            if c.get("customer_id") and c.get("name"):
+                cus_name_map[c.get("customer_id")] = c.get("name")
+
     # Combine payments into visit records if not already in field_visits
     existing_visit_ids = set(v.get("visit_id") for v in visit_docs if v.get("visit_id"))
 
     for p in payment_docs:
         pay_id = p.get("payment_id", str(p["_id"]))
         if pay_id not in existing_visit_ids:
+            cid = p.get("customer_id", "N/A")
             visit_docs.append({
                 "visit_id": pay_id,
                 "date_time": p.get("created_at", ""),
-                "consumer_id": p.get("customer_id", "N/A"),
+                "consumer_id": cid,
+                "consumer_name": cus_name_map.get(cid) or p.get("customer_name") or cid,
                 "meter_id": p.get("meter_number") or p.get("meter_id", "N/A"),
                 "status": "Payment Recovered",
                 "amount_collected": float(p.get("amount", 0.0)),
@@ -123,6 +143,7 @@ async def get_field_performance_report(
         filtered_visits = [
             v for v in filtered_visits
             if s_lower in str(v.get("consumer_id", "")).lower()
+            or s_lower in str(v.get("consumer_name", "")).lower()
             or s_lower in str(v.get("meter_id", "")).lower()
             or s_lower in str(v.get("officer_remarks", "")).lower()
             or s_lower in str(v.get("status", "")).lower()
@@ -131,10 +152,13 @@ async def get_field_performance_report(
     # Standardize result format
     formatted_visits = []
     for v in filtered_visits:
+        cid = v.get("consumer_id", "")
+        cname = v.get("consumer_name") or cus_name_map.get(cid) or cid
         formatted_visits.append({
             "visit_id": v.get("visit_id", str(v.get("_id", ""))),
             "date_time": v.get("date_time", ""),
-            "consumer_id": v.get("consumer_id", ""),
+            "consumer_id": cid,
+            "consumer_name": cname,
             "meter_id": v.get("meter_id", ""),
             "status": v.get("status", "Payment Recovered"),
             "amount_collected": safe_float(v.get("amount_collected")),
