@@ -5,21 +5,36 @@
 @layer base {
   html, body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-600 selection:text-white;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  /* Hide scrollbar for Chrome, Safari, Opera, Edge */
-  html::-webkit-scrollbar,
-  body::-webkit-scrollbar,
-  *::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
   }
 }
 
-/* Custom Utilities & Animations */
+/* Custom Scrollbar Utilities */
+.custom-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Utility to explicitly hide scrollbars */
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;

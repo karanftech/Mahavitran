@@ -249,7 +249,7 @@ export default function OfficerDashboard() {
                     <h4 className="font-bold text-slate-900 text-sm">{cus.name}</h4>
                   </div>
                   <p className="text-xs text-slate-500">
-                    {formatDistance(cus.distance_meters)} • Est. {cus.estimated_duration_mins} min travel
+                    {formatDistance(cus.distance_meters)} • Est. {cus.estimated_duration_mins ? `${Math.round(cus.estimated_duration_mins)} min` : '1 min'} travel
                   </p>
                   <p className="text-xs font-bold text-amber-600">{formatCurrency(cus.pending_amount)} pending</p>
                 </div>

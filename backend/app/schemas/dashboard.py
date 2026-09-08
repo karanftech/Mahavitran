@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from app.schemas.customer import CustomerResponse
+from app.schemas.customer import NearbyCustomerResponse
 
 class OfficerDashboardMetrics(BaseModel):
     total_assigned_customers: int
@@ -11,5 +11,5 @@ class OfficerDashboardMetrics(BaseModel):
     todays_collected_amount: float
     remaining_collections_count: int
     remaining_collections_amount: float
-    nearby_pending_customers: List[CustomerResponse] = []
+    nearby_pending_customers: List[NearbyCustomerResponse] = []
 

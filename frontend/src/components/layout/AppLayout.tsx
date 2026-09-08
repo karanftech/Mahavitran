@@ -1,40 +1,71 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import OfflineSyncBanner from '@/components/offline/OfflineSyncBanner';
-import { useAuth } from '@/hooks/useAuth';
 import MahavitaranPageLoader from '@/components/ui/MahavitaranPageLoader';
+
+const AUTH_PAGES = ['/login', '/register'];
+const PUBLIC_PAGES = ['/', '/login', '/register'];
+
+function readAuthFromStorage(): boolean {
+  if (typeof window === 'undefined') return false;
+  const token = localStorage.getItem('mv_token');
+  const user = localStorage.getItem('mv_user');
+  return !!(token && user);
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoading, isAuthenticated } = useAuth();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isAuthPage = AUTH_PAGES.includes(pathname);
   const isMapPage = pathname === '/map' || pathname.startsWith('/map');
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated && !isAuthPage) {
-        router.replace('/login');
-      }
-    }
-  }, [isLoading, isAuthenticated, isAuthPage, router]);
+    const authenticated = readAuthFromStorage();
+    setIsAuthenticated(authenticated);
+    setAuthChecked(true);
 
-  // Full-Screen Mahavitaran Page Loader while initial session is verifying
-  if (isLoading) {
+    // If trying to access a protected page without auth, redirect to login
+    if (!authenticated && !AUTH_PAGES.includes(pathname)) {
+      router.replace('/login');
+    }
+    // If already authenticated and visiting login/register, redirect to dashboard
+    if (authenticated && AUTH_PAGES.includes(pathname)) {
+      router.replace('/dashboard');
+    }
+  }, [pathname, router]);
+
+  // Listen for auth state changes (login/logout events)
+  useEffect(() => {
+    const handleAuthChange = () => {
+      const authenticated = readAuthFromStorage();
+      setIsAuthenticated(authenticated);
+      if (!authenticated && !AUTH_PAGES.includes(pathname)) {
+        router.replace('/login');
+      } else if (authenticated && AUTH_PAGES.includes(pathname)) {
+        router.replace('/dashboard');
+      }
+    };
+    window.addEventListener('auth-change', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, [pathname, router]);
+
+  // Show loader until we've checked auth
+  if (!authChecked) {
     return <MahavitaranPageLoader message="Initializing Mahavitaran Field Portal..." fullScreen={true} />;
   }
 
-  // Strictly block rendering protected pages if user is not authenticated
-  if (!isAuthenticated && !isAuthPage) {
-    return <MahavitaranPageLoader message="Authentication required. Redirecting to Login..." fullScreen={true} />;
-  }
-
-  // Auth pages (Login / Register) without sidebar
+  // Render auth pages (login/register) without sidebar
   if (isAuthPage) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -46,6 +77,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // If not authenticated and on a protected page, show redirecting loader
+  if (!isAuthenticated) {
+    return <MahavitaranPageLoader message="Authentication required. Redirecting to Login..." fullScreen={true} />;
+  }
+
+  // Map page layout
   if (isMapPage) {
     return (
       <div className="h-[100dvh] h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -60,6 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Standard layout with navbar + sidebar
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       <Navbar />

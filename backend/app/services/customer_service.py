@@ -29,24 +29,31 @@ class CustomerService:
         for cus in customers:
             c_lat = float(cus.get("latitude", 0.0))
             c_lng = float(cus.get("longitude", 0.0))
-            
+
+            # Fetch meters for customer
+            meters_docs = await db.meters.find({"customer_id": cus.get("customer_id")}).to_list(10)
+            meters = [
+                MeterSchema(
+                    meter_id=m.get("meter_id", ""),
+                    meter_number=m.get("meter_number", ""),
+                    customer_id=m.get("customer_id", ""),
+                    latitude=float(m.get("latitude", 0.0)),
+                    longitude=float(m.get("longitude", 0.0))
+                )
+                for m in meters_docs
+            ]
+
+            # If customer coordinates are 0 or missing, fallback to first valid meter location
+            if (c_lat == 0.0 or c_lng == 0.0) and meters:
+                for m in meters:
+                    if m.latitude != 0.0 and m.longitude != 0.0:
+                        c_lat, c_lng = m.latitude, m.longitude
+                        break
+
             dist = haversine_distance(latitude, longitude, c_lat, c_lng)
             if dist <= radius_meters:
                 # Calculate duration (riding speed ~25km/h => 6.94 m/s + 1.35 urban detour factor)
                 dur_mins = round((dist * 1.35 / 6.94) / 60.0, 1)
-
-                # Fetch meters for customer
-                meters_docs = await db.meters.find({"customer_id": cus.get("customer_id")}).to_list(10)
-                meters = [
-                    MeterSchema(
-                        meter_id=m.get("meter_id", ""),
-                        meter_number=m.get("meter_number", ""),
-                        customer_id=m.get("customer_id", ""),
-                        latitude=float(m.get("latitude", 0.0)),
-                        longitude=float(m.get("longitude", 0.0))
-                    )
-                    for m in meters_docs
-                ]
 
                 # Resolve assigned officer name
                 officer_name = None

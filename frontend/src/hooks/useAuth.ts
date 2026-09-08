@@ -9,19 +9,24 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Read current user session from localStorage
+    // Read from localStorage on mount (localStorage is safe on server too — guard with typeof window)
     const storedUser = authService.getCurrentUser();
     setUser(storedUser);
     setIsLoading(false);
 
-    // Handle cross-tab or logout storage updates
-    const handleStorageChange = () => {
-      setUser(authService.getCurrentUser());
+    // Re-sync whenever auth-change or storage events fire
+    const handleAuthChange = () => {
+      const current = authService.getCurrentUser();
+      setUser(current);
+      setIsLoading(false);
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth-change', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
     };
   }, []);
 

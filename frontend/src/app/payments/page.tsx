@@ -72,8 +72,8 @@ export default function PaymentsPage() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full min-w-[750px] text-left text-xs text-slate-700">
               <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-semibold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">Receipt #</th>

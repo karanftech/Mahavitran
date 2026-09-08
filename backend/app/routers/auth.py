@@ -40,8 +40,23 @@ async def register_field_officer(
     user_id_str = str(user_res.inserted_id)
 
     # 3. Create Field Officer Profile
-    officer_count = await db.officers.count_documents({})
-    officer_id = f"OFF-{1001 + officer_count}"
+    # Safely find the highest numeric officer ID across all officer records
+    cursor = db.officers.find({"officer_id": {"$regex": r"^OFF-\d+$"}}, {"officer_id": 1})
+    max_num = 1000
+    async for doc in cursor:
+        off_id_val = doc.get("officer_id", "")
+        try:
+            num = int(off_id_val.split("-")[1])
+            if num > max_num:
+                max_num = num
+        except (IndexError, ValueError):
+            pass
+
+    next_num = max_num + 1
+    officer_id = f"OFF-{next_num}"
+    while await db.officers.find_one({"officer_id": officer_id}):
+        next_num += 1
+        officer_id = f"OFF-{next_num}"
 
     officer_doc = {
         "officer_id": officer_id,
@@ -57,7 +72,15 @@ async def register_field_officer(
         "is_active": True,
         "created_at": now_str
     }
-    await db.officers.insert_one(officer_doc)
+    try:
+        await db.officers.insert_one(officer_doc)
+    except Exception as exc:
+        # Rollback user creation if officer profile fails
+        await db.users.delete_one({"_id": user_res.inserted_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create officer profile: {str(exc)}"
+        )
 
     # 4. Generate JWT Token
     access_token = create_access_token(
@@ -83,6 +106,40 @@ async def login(
 ):
     clean_email = request.email.lower().strip()
     user = await db.users.find_one({"email": clean_email})
+    
+    # Auto-seed default officer account if attempting login with standard demo emails
+    if not user and clean_email in ["officer@electricity.gov.in", "officer1@electricity.gov.in", "officer@mahavitaran.in"]:
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        pwd_hash = get_password_hash(request.password if request.password else "officer123")
+        user_doc = {
+            "email": clean_email,
+            "password_hash": pwd_hash,
+            "full_name": "Field Officer",
+            "role": "field_officer",
+            "phone": "+91 98220 00000",
+            "is_active": True,
+            "created_at": now_str
+        }
+        user_res = await db.users.insert_one(user_doc)
+        user_id_str = str(user_res.inserted_id)
+
+        officer_doc = {
+            "officer_id": "OFF-1001",
+            "user_id": user_id_str,
+            "full_name": "Field Officer",
+            "email": clean_email,
+            "phone": "+91 98220 00000",
+            "assigned_area": "Central Ward",
+            "target_collections_count": 15,
+            "target_collection_amount": 30000.0,
+            "current_latitude": 21.1458,
+            "current_longitude": 79.0882,
+            "is_active": True,
+            "created_at": now_str
+        }
+        await db.officers.insert_one(officer_doc)
+        user = await db.users.find_one({"_id": user_res.inserted_id})
+
     if not user or not verify_password(request.password, user.get("password_hash", "")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -2,14 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Shield, User, AlertCircle, ArrowRight, Lock, Mail, UserPlus, LogIn, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowRight, Lock, Mail, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { authService } from '@/services/authService';
-import MahavitaranPageLoader from '@/components/ui/MahavitaranPageLoader';
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -38,17 +34,32 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) {
-    return <MahavitaranPageLoader message="Signing in & initializing portal..." fullScreen={true} />;
-  }
-
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-50 font-sans">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
         {/* Header Title */}
         <div className="text-center space-y-1">
           <h2 className="text-2xl font-extrabold text-slate-900">Login</h2>
-          <p className="text-xs text-slate-500 font-medium">Enter your credentials</p>
+          <p className="text-xs text-slate-500 font-medium">Enter your credentials to access the Field Officer portal</p>
+        </div>
+
+        {/* Quick Demo Credentials Hint */}
+        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex items-center justify-between text-xs">
+          <div>
+            <p className="font-bold text-blue-900">Demo Officer Account</p>
+            <p className="text-[11px] text-blue-700">Email: <code className="font-mono bg-blue-100 px-1 py-0.5 rounded">officer@electricity.gov.in</code></p>
+            <p className="text-[11px] text-blue-700">Pass: <code className="font-mono bg-blue-100 px-1 py-0.5 rounded">officer123</code></p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('officer@electricity.gov.in');
+              setPassword('officer123');
+            }}
+            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-[10px] shadow-xs cursor-pointer shrink-0"
+          >
+            Auto Fill
+          </button>
         </div>
 
         {error && (
@@ -70,6 +81,7 @@ export default function LoginPage() {
                 placeholder="officer@electricity.gov.in"
                 className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -85,6 +97,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-9 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
+                disabled={isLoading}
               />
               <button
                 type="button"
@@ -100,10 +113,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
           >
             {isLoading ? (
-              <span>Signing In...</span>
+              <>
+                <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>Signing In...</span>
+              </>
             ) : (
               <>
                 <span>Sign In</span>
@@ -122,8 +141,6 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-
-
       </div>
     </div>
   );

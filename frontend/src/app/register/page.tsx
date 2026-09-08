@@ -37,7 +37,7 @@ export default function RegisterPage() {
         password,
         phone: phone.trim(),
       });
-      window.location.href = '/dashboard';
+      window.location.replace('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.data?.detail) {
@@ -49,13 +49,6 @@ export default function RegisterPage() {
       }
     }
   };
-
-  if (isLoading) {
-    return <MahavitaranPageLoader message="Creating account & initializing portal..." fullScreen={true} />;
-  }
-
-
-
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-50 font-sans">

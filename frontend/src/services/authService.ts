@@ -7,6 +7,30 @@ export interface LoginResponse {
   user: User;
 }
 
+const TOKEN_KEY = 'mv_token';
+const USER_KEY = 'mv_user';
+
+function saveSession(token: string, user: User) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth-change'));
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  // Also clear any old keys from previous implementation
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth-change'));
+  }
+}
+
 export const authService = {
   async register(data: {
     full_name: string;
@@ -17,8 +41,7 @@ export const authService = {
   }): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('/api/auth/register', data);
     if (response.data.access_token) {
-      sessionStorage.setItem('token', response.data.access_token);
-      sessionStorage.setItem('user', JSON.stringify(response.data.user));
+      saveSession(response.data.access_token, response.data.user);
     }
     return response.data;
   },
@@ -26,8 +49,7 @@ export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('/api/auth/login', { email, password });
     if (response.data.access_token) {
-      sessionStorage.setItem('token', response.data.access_token);
-      sessionStorage.setItem('user', JSON.stringify(response.data.user));
+      saveSession(response.data.access_token, response.data.user);
     }
     return response.data;
   },
@@ -38,55 +60,56 @@ export const authService = {
     } catch {
       // Ignore network failures on logout
     } finally {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearSession();
     }
   },
 
   async getMe(): Promise<User> {
     const response = await api.get<User>('/api/auth/me');
-    sessionStorage.setItem('user', JSON.stringify(response.data));
+    localStorage.setItem(USER_KEY, JSON.stringify(response.data));
     return response.data;
+  },
+
+  getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(TOKEN_KEY);
   },
 
   getCurrentUser(): User | null {
     if (typeof window === 'undefined') return null;
 
-    // Purge old persistent localStorage auth data to require login on direct URL visits
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-
-    const token = sessionStorage.getItem('token');
-    const userStr = sessionStorage.getItem('user');
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userStr = localStorage.getItem(USER_KEY);
     if (!token || !userStr) return null;
 
     try {
       // Check client-side JWT token expiration
       const tokenParts = token.split('.');
       if (tokenParts.length === 3) {
-        const base64Url = tokenParts[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
+        let base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4 !== 0) base64 += '=';
+        const payload = JSON.parse(
+          decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          )
         );
-        const payload = JSON.parse(jsonPayload);
         if (payload.exp && payload.exp * 1000 < Date.now()) {
-          // Token is expired - clear session immediately
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
+          clearSession();
           return null;
         }
       }
       return JSON.parse(userStr);
     } catch {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      return null;
+      // Token decode failed but userStr may still be valid — return it
+      try {
+        return JSON.parse(userStr);
+      } catch {
+        clearSession();
+        return null;
+      }
     }
   },
 };

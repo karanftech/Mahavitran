@@ -123,7 +123,7 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
             />
           </div>
 
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto text-xs">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto custom-scrollbar text-xs pb-1 sm:pb-0">
             <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1" />
             {[
               { label: 'All', value: '' },
@@ -147,7 +147,7 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
         </div>
 
         {/* Table Body */}
-        <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 custom-scrollbar">
           {loading ? (
             <div className="py-16 text-center text-slate-500 text-xs space-y-2">
               <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -160,10 +160,10 @@ export default function AssignedCustomersModal({ isOpen, onClose, initialFilter 
               <p className="text-slate-400 text-[11px] mt-0.5">Try adjusting your search filters above.</p>
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto custom-scrollbar shadow-xs">
+              <table className="w-full min-w-[720px] text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 uppercase text-[10px] font-extrabold tracking-wider">
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 uppercase text-[10px] font-extrabold tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4">#</th>
                     <th className="py-3 px-4">Meter ID / Number</th>
                     <th className="py-3 px-4">Consumer Name</th>

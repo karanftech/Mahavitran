@@ -221,7 +221,7 @@ export default function MapView({
 
         <div style="margin: 4px 0 6px; padding: 4px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
           <span style="font-size: 9.5px; color: #b45309; font-weight: 800; text-transform: uppercase;">Amt for Pay Now</span>
-          <span style="font-size: 12.5px; font-weight: 900; color: #d97706;">₹${customer.pending_amount.toLocaleString('en-IN')}</span>
+          <span style="font-size: 12.5px; font-weight: 900; color: #d97706;">&#8377;${customer.pending_amount.toLocaleString('en-IN')}</span>
         </div>
 
         <button
@@ -231,7 +231,7 @@ export default function MapView({
           onmouseout="this.style.background='#059669'"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-          <span>Collect ₹${customer.pending_amount.toLocaleString('en-IN')}</span>
+          <span>Collect &#8377;${customer.pending_amount.toLocaleString('en-IN')}</span>
         </button>
       </div>
     `;

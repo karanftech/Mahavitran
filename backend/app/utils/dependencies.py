@@ -24,9 +24,14 @@ async def get_current_user(
     user_email: str = payload.get("sub")
     if user_email is None:
         raise credentials_exception
-        
-    user = await db.users.find_one({"email": user_email, "is_active": True})
-    if user is None:
+
+    clean_email = user_email.lower().strip()
+    user = await db.users.find_one({"email": clean_email})
+    if not user:
+        # Fallback exact match if email was not stored in lowercase
+        user = await db.users.find_one({"email": user_email})
+
+    if user is None or not user.get("is_active", True):
         raise credentials_exception
         
     user["_id"] = str(user["_id"])

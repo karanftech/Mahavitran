@@ -56,7 +56,7 @@ export default function PaymentModal({
     }
 
     if (amt > customer.pending_amount) {
-      setError(`Collected amount (₹${amt}) cannot exceed pending amount (₹${customer.pending_amount}).`);
+      setError(`Collected amount (\u20b9${amt}) cannot exceed pending amount (\u20b9${customer.pending_amount}).`);
       return;
     }
 

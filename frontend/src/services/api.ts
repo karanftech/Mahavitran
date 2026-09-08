@@ -18,18 +18,15 @@ const getBaseUrl = () => {
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
   },
 });
 
-// Intercept requests to set dynamic baseURL and attach Authorization header
+// Attach Authorization header dynamically before each request
 api.interceptors.request.use(
   (config) => {
     config.baseURL = getBaseUrl();
     if (typeof window !== 'undefined') {
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const token = localStorage.getItem('mv_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -39,17 +36,23 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Intercept responses to handle 401 Unauthorized or 403 Forbidden
+// On 401/403, clear auth and redirect to login (using Next.js router-compatible approach)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
+        // Clear all auth data
+        localStorage.removeItem('mv_token');
+        localStorage.removeItem('mv_user');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        if (!window.location.pathname.startsWith('/login')) {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        // Dispatch event so useAuth can react before any redirect
+        window.dispatchEvent(new Event('auth-change'));
+        // Only redirect if not already on an auth page
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
           window.location.href = '/login';
         }
       }

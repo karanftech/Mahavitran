@@ -247,8 +247,8 @@ export default function ReportsPage() {
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full min-w-[850px] text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-3 px-5">DATE & TIME</th>
