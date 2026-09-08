@@ -9,6 +9,7 @@ import ReceiptView from '@/components/payments/ReceiptView';
 
 
 import {
+  Coordinates,
   Customer,
   MapFilterState,
   MultiRouteCalculationResult,
@@ -89,7 +90,8 @@ function MapPageContent() {
   const loadCustomers = async () => {
     setIsLoadingCustomers(true);
     try {
-      const data = await customerService.getCustomers({ all_officers: true });
+      const data = await customerService.getCustomers();
+
       const safeData = Array.isArray(data) ? data : [];
       setAllCustomers(safeData);
 
