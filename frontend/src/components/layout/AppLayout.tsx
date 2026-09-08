@@ -14,7 +14,33 @@ function readAuthFromStorage(): boolean {
   if (typeof window === 'undefined') return false;
   const token = localStorage.getItem('mv_token');
   const user = localStorage.getItem('mv_user');
-  return !!(token && user);
+  if (!token || !user) return false;
+
+  try {
+    const tokenParts = token.split('.');
+    if (tokenParts.length === 3) {
+      let base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) base64 += '=';
+      const payload = JSON.parse(
+        decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        )
+      );
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem('mv_token');
+        localStorage.removeItem('mv_user');
+        document.cookie = 'mv_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+        return false;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return true;
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

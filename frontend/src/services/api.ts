@@ -49,6 +49,7 @@ api.interceptors.response.use(
         localStorage.removeItem('user');
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
+        document.cookie = 'mv_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
         // Dispatch event so useAuth can react before any redirect
         window.dispatchEvent(new Event('auth-change'));
         // Only redirect if not already on an auth page

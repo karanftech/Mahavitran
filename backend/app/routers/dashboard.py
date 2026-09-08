@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
+import asyncio
 
 from app.database import get_database
 from app.schemas.dashboard import OfficerDashboardMetrics
@@ -21,13 +22,6 @@ def safe_float(val: Any, default: float = 0.0) -> float:
     except (ValueError, TypeError):
         return default
 
-def get_created_at_str(doc: dict) -> str:
-    val = doc.get("created_at")
-    if isinstance(val, datetime):
-        return val.strftime("%Y-%m-%d %H:%M:%S")
-    if isinstance(val, str):
-        return val
-    return ""
 
 @router.get("/officer", response_model=OfficerDashboardMetrics)
 async def get_officer_dashboard(
@@ -37,41 +31,68 @@ async def get_officer_dashboard(
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        # Fetch officer record with fallback to email matching
-        officer_id = None
-        officer_doc = await db.officers.find_one({
-            "$or": [
-                {"user_id": current_user["_id"]},
-                {"email": current_user.get("email")}
-            ]
-        })
-        if officer_doc:
-            officer_id = officer_doc.get("officer_id")
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # 1. Total assigned customers
-        assigned_customers = await db.customers.find({}).to_list(2000)
-        total_assigned = len(assigned_customers)
+        # Run all independent DB queries concurrently
+        (
+            officer_doc,
+            total_assigned,
+            pending_agg,
+            paid_count,
+            total_payments_count,
+            today_agg,
+        ) = await asyncio.gather(
+            # Officer record
+            db.officers.find_one({
+                "$or": [
+                    {"user_id": current_user["_id"]},
+                    {"email": current_user.get("email")}
+                ]
+            }),
+            # Total customer count (no document fetch needed)
+            db.customers.count_documents({}),
+            # Pending amount + count via aggregation (no full doc fetch)
+            db.customers.aggregate([
+                {"$match": {"status": {"$in": ["pending", "overdue", "partially_paid"]}}},
+                {"$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$pending_amount"},
+                    "count": {"$sum": 1}
+                }}
+            ]).to_list(1),
+            # Paid customers count
+            db.customers.count_documents({"status": "paid"}),
+            # Total payments count
+            db.payments.count_documents({}),
+            # Today's payment aggregation
+            db.payments.aggregate([
+                {"$match": {"created_at": {"$gte": today_start}}},
+                {"$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$amount"},
+                    "count": {"$sum": 1}
+                }}
+            ]).to_list(1),
+        )
 
-        # 2. Total pending amount & pending customers count
-        pending_customers = [c for c in assigned_customers if c.get("status") in ["pending", "overdue", "partially_paid"]]
-        total_pending_amt = sum(safe_float(c.get("pending_amount")) for c in pending_customers)
-        pending_bills_count = len(pending_customers)
+        officer_id = officer_doc.get("officer_id") if officer_doc else None
 
-        # 3. Completed collections & Today's collected (All system collections accessible to field officer)
-        all_payments = await db.payments.find({}).to_list(2000)
-        paid_customers_count = len([c for c in assigned_customers if c.get("status") == "paid"])
-        completed_collections_count = max(len(all_payments), paid_customers_count)
+        # Extract aggregation results
+        pending_result = pending_agg[0] if pending_agg else {}
+        total_pending_amt = safe_float(pending_result.get("total_amount"), 0.0)
+        pending_bills_count = int(pending_result.get("count", 0))
 
-        today_prefix = datetime.utcnow().strftime("%Y-%m-%d")
-        today_payments = [p for p in all_payments if get_created_at_str(p).startswith(today_prefix)]
-        todays_collected_amt = sum(safe_float(p.get("amount")) for p in today_payments)
+        completed_collections_count = max(total_payments_count, paid_count)
 
-        # 4. Officer targets
+        today_result = today_agg[0] if today_agg else {}
+        todays_collected_amt = safe_float(today_result.get("total_amount"), 0.0)
+        today_payments_count = int(today_result.get("count", 0))
+
         todays_target = safe_float(officer_doc.get("target_collection_amount"), 25000.0) if officer_doc else 25000.0
-        remaining_count = max(0, total_assigned - len(today_payments))
+        remaining_count = max(0, int(total_assigned) - today_payments_count)
         remaining_amt = max(0.0, todays_target - todays_collected_amt)
 
-        # 5. Nearby pending customers
+        # Nearby pending customers (already optimised with batch queries)
         nearby_customers = await CustomerService.get_nearby_customers(
             db=db,
             latitude=latitude or 21.1458,
@@ -81,7 +102,7 @@ async def get_officer_dashboard(
         )
 
         return OfficerDashboardMetrics(
-            total_assigned_customers=total_assigned,
+            total_assigned_customers=int(total_assigned),
             total_pending_amount=round(total_pending_amt, 2),
             number_of_pending_bills=pending_bills_count,
             number_of_completed_collections=completed_collections_count,
@@ -104,5 +125,6 @@ async def get_officer_dashboard(
             remaining_collections_amount=0.0,
             nearby_pending_customers=[]
         )
+
 
 

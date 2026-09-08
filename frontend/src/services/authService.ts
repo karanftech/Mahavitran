@@ -14,6 +14,7 @@ function saveSession(token: string, user: User) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   if (typeof window !== 'undefined') {
+    document.cookie = `mv_token=${token}; path=/; max-age=86400; SameSite=Lax`;
     window.dispatchEvent(new Event('auth-change'));
   }
 }
@@ -27,6 +28,7 @@ function clearSession() {
   sessionStorage.removeItem('token');
   sessionStorage.removeItem('user');
   if (typeof window !== 'undefined') {
+    document.cookie = 'mv_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     window.dispatchEvent(new Event('auth-change'));
   }
 }
