@@ -35,14 +35,20 @@ export default function ReportsPage() {
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('All Statuses');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchReportData = async () => {
     setLoading(true);
     try {
       const response = await api.get<ReportResponse>('/api/reports/field-performance', {
         params: {
-          search: search || undefined,
+          search: debouncedSearch || undefined,
           status_filter: statusFilter !== 'All Statuses' ? statusFilter : undefined,
         },
       });
@@ -56,7 +62,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchReportData();
-  }, [statusFilter]);
+  }, [statusFilter, debouncedSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

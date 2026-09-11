@@ -1,9 +1,17 @@
 import api from './api';
 import { Customer, NearbyCustomer, DTCCodesResponse } from '@/types';
 
+interface CacheEntry<T> {
+  timestamp: number;
+  data: T;
+}
+
+const CACHE_TTL_MS = 10000; // 10 seconds short-lived memory cache
+const cacheStore = new Map<string, CacheEntry<any>>();
+
 export const customerService = {
   clearCache() {
-    // No-op: Caching has been completely disabled for real-time live data fetching
+    cacheStore.clear();
   },
 
   async getCustomers(params?: {
@@ -17,18 +25,32 @@ export const customerService = {
     search?: string;
     limit?: number;
   }): Promise<Customer[]> {
-    // Perform fresh Network API Request on every call
+    const key = `customers:${JSON.stringify(params || {})}`;
+    const cached = cacheStore.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     const response = await api.get<Customer[]>('/api/customers', {
       params: { limit: 1000, ...params },
     });
 
+    cacheStore.set(key, { timestamp: Date.now(), data: response.data });
     return response.data;
   },
 
   async getDtcCodes(all_officers: boolean = false): Promise<DTCCodesResponse> {
+    const key = `dtc_codes:${all_officers}`;
+    const cached = cacheStore.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     const response = await api.get<DTCCodesResponse>('/api/customers/dtc-codes', {
       params: { all_officers },
     });
+
+    cacheStore.set(key, { timestamp: Date.now(), data: response.data });
     return response.data;
   },
 
@@ -74,3 +96,4 @@ export const customerService = {
     return response.data;
   },
 };
+

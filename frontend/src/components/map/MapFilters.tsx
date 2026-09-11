@@ -305,13 +305,13 @@ export default function MapFilters({
             </div>
           </div>
 
-          {/* Dynamic DTC Filter Section */}
+          {/* DTC Filter Section */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between px-0.5">
               <div className="flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                  Dynamic DTC Code Filter (7-Digit)
+                  DTC Code Filter (7-Digit)
                 </h4>
               </div>
               <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">

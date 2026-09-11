@@ -49,6 +49,9 @@ async def init_db_indexes():
         await db.customers.create_index("area")
         await db.customers.create_index([("assigned_officer_id", 1), ("status", 1)])
         await db.customers.create_index([("uploaded_by_officer_id", 1), ("status", 1)])
+        await db.customers.create_index([("assigned_officer_id", 1), ("dtc_code", 1)])
+        await db.customers.create_index([("uploaded_by_officer_id", 1), ("dtc_code", 1)])
+        await db.customers.create_index([("assigned_officer_id", 1), ("status", 1), ("dtc_code", 1)])
 
         # Meters indexes
         await db.meters.create_index("meter_number", unique=True)

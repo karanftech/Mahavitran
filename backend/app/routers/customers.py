@@ -279,7 +279,9 @@ async def create_customer(
         if off_doc:
             assigned_officer_id = off_doc.get("officer_id")
 
-    dtc_code = CustomerImportService.normalize_dtc_code(request.dtc_code) if request.dtc_code else "4410001"
+    if not request.dtc_code or not str(request.dtc_code).strip():
+        raise HTTPException(status_code=400, detail="DTC code is required.")
+    dtc_code = CustomerImportService.normalize_dtc_code(request.dtc_code)
 
     customer_doc = {
         "customer_id": request.customer_id,

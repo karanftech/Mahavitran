@@ -156,6 +156,12 @@ class CustomerImportService:
         headers, data_rows = await CustomerImportService.parse_file_rows(file)
         mapping = CustomerImportService.get_column_mapping(headers)
 
+        if 'dtc_code' not in mapping:
+            raise HTTPException(
+                status_code=400,
+                detail="DTC Code column is missing in the uploaded file. DTC Code is required in CSV."
+            )
+
         if 'customer_id' not in mapping and len(headers) >= 1:
             mapping['customer_id'] = 0
 
@@ -242,7 +248,8 @@ class CustomerImportService:
                 raw_dtc = get_val('dtc_code', '')
                 dtc_code = CustomerImportService.normalize_dtc_code(raw_dtc)
                 if not dtc_code:
-                    dtc_code = f"44100{(row_idx % 10) + 1:02d}"
+                    errors.append(f"Row {row_idx}: DTC code is required in CSV.")
+                    continue
 
                 status = "overdue" if pending_amount > 3000 else ("pending" if pending_amount > 0 else "paid")
                 priority = "high" if pending_amount > 5000 else "normal"
@@ -306,6 +313,12 @@ class CustomerImportService:
 
             except Exception as e:
                 errors.append(f"Row {row_idx}: {str(e)}")
+
+        if inserted_count == 0 and updated_count == 0 and errors:
+            raise HTTPException(
+                status_code=400,
+                detail="Import failed: DTC code is required in CSV file."
+            )
 
         return {
             "success": True,

@@ -21,6 +21,16 @@ export default function CustomersPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
 
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+
+  // Debounce search input to avoid hitting API on every keystroke
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const fetchDtcCodes = async () => {
     try {
       const res = await customerService.getDtcCodes();
@@ -35,7 +45,7 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const data = await customerService.getCustomers({
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         status: statusFilter || undefined,
         dtc_code: dtcFilter || undefined,
       });
@@ -53,9 +63,10 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [search, statusFilter, dtcFilter]);
+  }, [debouncedSearch, statusFilter, dtcFilter]);
 
   const handleUploadSuccess = () => {
+    customerService.clearCache();
     fetchDtcCodes();
     fetchCustomers();
     // Broadcast custom event for other listeners
@@ -68,7 +79,7 @@ export default function CustomersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Electricity Consumers & Meters</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Directory of registered consumers, electricity meters, pending balances, dynamic DTC codes, and field assignments.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Directory of registered consumers, electricity meters, pending balances, DTC codes, and field assignments.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -103,7 +114,7 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto text-xs">
-          {/* Dynamic DTC Filter Dropdown */}
+          {/* DTC Filter Dropdown */}
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-md">
             <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span className="font-bold text-[11px] text-slate-600 uppercase">DTC:</span>
