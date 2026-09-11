@@ -85,15 +85,22 @@ export function matchCustomerFilters(
     customer_id: string;
     meter_number: string;
     address: string;
+    dtc_code?: string;
   },
   filters: {
     overduePeriod?: string;
     outstandingAmount?: string;
     status?: string;
+    dtcCode?: string;
     searchQuery?: string;
   }
 ): boolean {
-  // 1. Overdue Period Filter
+  // 1. DTC Code Filter
+  if (filters.dtcCode && filters.dtcCode !== 'all') {
+    if (customer.dtc_code !== filters.dtcCode) return false;
+  }
+
+  // 2. Overdue Period Filter
   if (filters.overduePeriod && filters.overduePeriod !== 'all') {
     const days = getOverdueDays(customer.due_date);
     if (filters.overduePeriod === 'less_15' && days >= 15) return false;
@@ -103,7 +110,7 @@ export function matchCustomerFilters(
     if (filters.overduePeriod === 'over_120' && days <= 120) return false;
   }
 
-  // 2. Outstanding Amount Filter
+  // 3. Outstanding Amount Filter
   if (filters.outstandingAmount && filters.outstandingAmount !== 'all') {
     const amt = customer.pending_amount || 0;
     if (filters.outstandingAmount === 'less_500' && amt >= 500) return false;
@@ -112,22 +119,33 @@ export function matchCustomerFilters(
     if (filters.outstandingAmount === 'over_10000' && amt <= 10000) return false;
   }
 
-  // 3. Status Filter (compatibility)
+  // 4. Status Filter (compatibility)
   if (filters.status && filters.status !== 'all') {
     if (filters.status === 'pending' && customer.status === 'paid') return false;
     if (filters.status === 'overdue' && customer.status !== 'overdue' && customer.priority !== 'high' && customer.priority !== 'critical') return false;
     if (filters.status === 'collected' && customer.status !== 'paid') return false;
   }
 
-  // 4. Search Query
+  // 5. Search Query
   if (filters.searchQuery && filters.searchQuery.trim()) {
     const q = filters.searchQuery.toLowerCase();
     const matchName = customer.name.toLowerCase().includes(q);
     const matchId = customer.customer_id.toLowerCase().includes(q);
     const matchMeter = customer.meter_number.toLowerCase().includes(q);
     const matchAddr = customer.address.toLowerCase().includes(q);
-    if (!matchName && !matchId && !matchMeter && !matchAddr) return false;
+    const matchDtc = (customer.dtc_code || '').toLowerCase().includes(q);
+    if (!matchName && !matchId && !matchMeter && !matchAddr && !matchDtc) return false;
   }
 
   return true;
 }
+
+export default {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatDistance,
+  formatDuration,
+  getOverdueDays,
+  matchCustomerFilters,
+};

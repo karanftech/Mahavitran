@@ -44,12 +44,49 @@ class CustomerImportService:
                 mapping['longitude'] = idx
             elif any(k in h for k in ['lang long', 'lat long', 'coordinates', 'lat/long']):
                 mapping['lang_long'] = idx
+            elif any(k in h for k in ['dtc code', 'dtc_code', 'dtc no', 'dtc_no', 'dtc number', 'dtc id', 'dtc']):
+                mapping['dtc_code'] = idx
             elif 'address' in h:
                 mapping['address'] = idx
             elif 'area' in h:
                 mapping['area'] = idx
 
         return mapping
+
+    @staticmethod
+    def normalize_dtc_code(val: Any) -> str:
+        """
+        Clean and normalize DTC code into a standard 7-digit string.
+        Rule: DTC code has 7 digits always (e.g., '0123456' or '4410012').
+        """
+        if val is None:
+            return ""
+        
+        s = str(val).strip()
+        if not s or s.lower() in ('nan', 'none', 'null', '0', '0.0'):
+            return ""
+
+        if s.endswith('.0'):
+            s = s[:-2]
+
+        s = s.upper().replace(" ", "")
+
+        if s.isdigit():
+            if len(s) < 7:
+                s = s.zfill(7)
+            elif len(s) > 7:
+                s = s[:7]
+        elif len(s) < 7:
+            import re
+            digits = re.sub(r'\D', '', s)
+            letters = re.sub(r'\d', '', s)
+            if digits:
+                padded_digits = digits.zfill(max(1, 7 - len(letters)))
+                s = f"{letters}{padded_digits}"
+            else:
+                s = s.zfill(7)
+
+        return s
 
     @staticmethod
     async def parse_file_rows(file: UploadFile) -> Tuple[List[str], List[List[Any]]]:
@@ -202,6 +239,11 @@ class CustomerImportService:
                 address = get_val('address') or f"Plot {row_idx}, Central Sector"
                 area = get_val('area') or "Central Area"
 
+                raw_dtc = get_val('dtc_code', '')
+                dtc_code = CustomerImportService.normalize_dtc_code(raw_dtc)
+                if not dtc_code:
+                    dtc_code = f"44100{(row_idx % 10) + 1:02d}"
+
                 status = "overdue" if pending_amount > 3000 else ("pending" if pending_amount > 0 else "paid")
                 priority = "high" if pending_amount > 5000 else "normal"
 
@@ -223,6 +265,7 @@ class CustomerImportService:
                     "longitude": lng,
                     "location": location,
                     "meter_number": meter_number,
+                    "dtc_code": dtc_code,
                     "pending_amount": pending_amount,
                     "due_date": default_due_date,
                     "status": status,
@@ -249,6 +292,7 @@ class CustomerImportService:
                     "customer_id": customer_id,
                     "latitude": lat,
                     "longitude": lng,
+                    "dtc_code": dtc_code,
                     "assigned_officer_id": customer_doc.get("assigned_officer_id"),
                     "uploaded_by_officer_id": customer_doc.get("uploaded_by_officer_id")
                 }

@@ -1,5 +1,5 @@
 import api from './api';
-import { Customer, NearbyCustomer } from '@/types';
+import { Customer, NearbyCustomer, DTCCodesResponse } from '@/types';
 
 export const customerService = {
   clearCache() {
@@ -8,6 +8,7 @@ export const customerService = {
 
   async getCustomers(params?: {
     area?: string;
+    dtc_code?: string;
     status?: string;
     min_amount?: number;
     max_amount?: number;
@@ -21,6 +22,13 @@ export const customerService = {
       params: { limit: 1000, ...params },
     });
 
+    return response.data;
+  },
+
+  async getDtcCodes(all_officers: boolean = false): Promise<DTCCodesResponse> {
+    const response = await api.get<DTCCodesResponse>('/api/customers/dtc-codes', {
+      params: { all_officers },
+    });
     return response.data;
   },
 

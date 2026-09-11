@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Printer, Search, ChevronDown, CheckCircle, XCircle, PhoneCall, AlertCircle, HelpCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
-import { formatCurrency, formatDateTime } from '@/utils/formatters';
+import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 
 interface FieldVisit {
   visit_id: string;
@@ -111,7 +111,7 @@ export default function ReportsPage() {
           </div>
           <div className="text-right text-[11px] space-y-0.5">
             <p><span className="font-semibold text-slate-600">Ward:</span> <span className="font-bold">{data?.ward_name || 'Thote & Thakre Ward'}</span></p>
-            <p><span className="font-semibold text-slate-600">Report Date:</span> <span className="font-bold">{formatDateTime(new Date().toISOString())}</span></p>
+            <p><span className="font-semibold text-slate-600">Report Date:</span> <span className="font-bold">{(typeof formatDateTime === 'function' ? formatDateTime : formatDate)(new Date().toISOString())}</span></p>
             <p><span className="font-semibold text-slate-600">Total Visits:</span> <span className="font-bold">{data?.visits?.length ?? 0}</span></p>
             <p><span className="font-semibold text-slate-600">Total Recovered:</span> <span className="font-bold text-emerald-800">{formatCurrency(data?.kpis?.total_recovered ?? 0)}</span></p>
           </div>

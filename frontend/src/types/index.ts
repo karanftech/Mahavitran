@@ -16,6 +16,7 @@ export interface Meter {
   customer_id: string;
   latitude: number;
   longitude: number;
+  dtc_code?: string;
   assigned_officer_id?: string;
   assigned_officer_name?: string;
   uploaded_by_officer_id?: string;
@@ -33,6 +34,7 @@ export interface Customer {
   area: string;
   latitude: number;
   longitude: number;
+  dtc_code?: string;
   pending_amount: number;
   due_date?: string;
   status: 'pending' | 'overdue' | 'paid' | 'partially_paid';
@@ -45,6 +47,18 @@ export interface Customer {
   estimated_duration_mins?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+
+export interface DTCCodeOption {
+  code: string;
+  meter_count: number;
+}
+
+export interface DTCCodesResponse {
+  total_dtcs: number;
+  total_meters: number;
+  dtcs: DTCCodeOption[];
 }
 
 
@@ -186,6 +200,7 @@ export type OutstandingAmountFilter = 'all' | 'less_500' | 'over_500' | 'over_50
 
 export interface MapFilterState {
   status?: 'all' | 'pending' | 'overdue' | 'high_amount' | 'due_today' | 'due_week' | 'collected';
+  dtcCode?: string;
   overduePeriod: OverduePeriodFilter;
   outstandingAmount: OutstandingAmountFilter;
   searchQuery: string;

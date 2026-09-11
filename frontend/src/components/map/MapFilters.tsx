@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX, Check } from 'lucide-react';
-import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter } from '@/types';
+import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX, Check, Zap } from 'lucide-react';
+import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter, DTCCodeOption } from '@/types';
+import { customerService } from '@/services/customerService';
 
 interface MapFiltersProps {
   filters: MapFilterState;
@@ -34,7 +35,31 @@ export default function MapFilters({
   onToggleMute,
 }: MapFiltersProps) {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
+  const [dtcList, setDtcList] = useState<DTCCodeOption[]>([]);
+  const [totalMeters, setTotalMeters] = useState<number>(0);
+  const [loadingDtcs, setLoadingDtcs] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchDtcCodes = async () => {
+    setLoadingDtcs(true);
+    try {
+      const res = await customerService.getDtcCodes();
+      setDtcList(res.dtcs || []);
+      setTotalMeters(res.total_meters || 0);
+    } catch (err) {
+      console.error('Failed to fetch DTC codes', err);
+    } finally {
+      setLoadingDtcs(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDtcCodes();
+
+    const handleCustomRefresh = () => fetchDtcCodes();
+    window.addEventListener('customers-updated', handleCustomRefresh);
+    return () => window.removeEventListener('customers-updated', handleCustomRefresh);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -67,7 +92,8 @@ export default function MapFilters({
   const isFilterActive =
     (filters.overduePeriod && filters.overduePeriod !== 'all') ||
     (filters.outstandingAmount && filters.outstandingAmount !== 'all') ||
-    (filters.status && filters.status !== 'all');
+    (filters.status && filters.status !== 'all') ||
+    (filters.dtcCode && filters.dtcCode !== 'all');
 
   const handleResetFilters = () => {
     onFilterChange({
@@ -75,6 +101,7 @@ export default function MapFilters({
       overduePeriod: 'all',
       outstandingAmount: 'all',
       status: 'all',
+      dtcCode: 'all',
     });
   };
 
@@ -97,6 +124,24 @@ export default function MapFilters({
 
         {/* Right Action Icons Group */}
         <div className="flex items-center gap-2 shrink-0 pl-1 border-l border-slate-200">
+
+          {/* Quick DTC Filter Selector Pill directly visible on bar */}
+          <div className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold text-amber-900 shrink-0 transition-colors">
+            <Zap className="w-3 h-3 text-amber-600 fill-amber-500 shrink-0" />
+            <select
+              value={filters.dtcCode || 'all'}
+              onChange={(e) => onFilterChange({ ...filters, dtcCode: e.target.value })}
+              className="bg-transparent text-[11px] font-bold text-amber-900 focus:outline-none cursor-pointer max-w-[110px] truncate"
+              title="Quick Dynamic DTC Filter"
+            >
+              <option value="all">All DTCs ({totalMeters})</option>
+              {dtcList.map((dtc) => (
+                <option key={dtc.code} value={dtc.code}>
+                  DTC {dtc.code} ({dtc.meter_count})
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Filter Icon & Label */}
           <div className="flex flex-col items-center gap-0.5">
@@ -276,6 +321,70 @@ export default function MapFilters({
                 );
               })}
             </div>
+          </div>
+
+          {/* Dynamic DTC Filter Section */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between px-0.5">
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                  Dynamic DTC Code Filter (7-Digit)
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                {dtcList.length} Active DTCs
+              </span>
+            </div>
+
+            {loadingDtcs ? (
+              <div className="flex items-center justify-center p-3 text-slate-400 text-xs gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                <span>Loading DTCs...</span>
+              </div>
+            ) : dtcList.length === 0 ? (
+              <div className="text-[11px] text-slate-400 p-2 text-center bg-slate-50 rounded-xl border border-slate-200">
+                No DTC Codes found. Upload an Excel file with a DTC Code column to populate.
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-slate-50 border border-slate-200 rounded-xl custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => onFilterChange({ ...filters, dtcCode: 'all' })}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                    (!filters.dtcCode || filters.dtcCode === 'all')
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>All DTCs</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${(!filters.dtcCode || filters.dtcCode === 'all') ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {totalMeters}
+                  </span>
+                </button>
+
+                {dtcList.map((dtc) => {
+                  const isSelected = filters.dtcCode === dtc.code;
+                  return (
+                    <button
+                      key={dtc.code}
+                      type="button"
+                      onClick={() => onFilterChange({ ...filters, dtcCode: dtc.code })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>{dtc.code}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                        {dtc.meter_count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Direct Button to Start Navigation to ALL Filtered Customers */}

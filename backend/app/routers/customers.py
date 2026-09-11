@@ -6,7 +6,15 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.database import get_database
-from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse, NearbyCustomerResponse, MeterSchema
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerUpdate,
+    CustomerResponse,
+    NearbyCustomerResponse,
+    MeterSchema,
+    DTCCodeOption,
+    DTCCodesResponse,
+)
 from app.services.customer_service import CustomerService
 from app.services.customer_import_service import CustomerImportService
 from app.utils.dependencies import get_current_user
@@ -38,9 +46,65 @@ async def get_nearby_customers(
         officer_id=officer_id
     )
 
+@router.get("/dtc-codes", response_model=DTCCodesResponse)
+async def get_dtc_codes(
+    all_officers: Optional[bool] = Query(False),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get dynamic distinct DTC codes and meter counts for the authenticated field officer."""
+    match_query: Dict[str, Any] = {
+        "dtc_code": {"$exists": True, "$ne": None, "$nin": ["", "null", "NaN"]}
+    }
+
+    if not all_officers:
+        user_id_str = str(current_user["_id"])
+        officer_doc = await db.officers.find_one({
+            "$or": [
+                {"user_id": current_user["_id"]},
+                {"user_id": user_id_str},
+                {"email": current_user.get("email")}
+            ]
+        })
+        if officer_doc:
+            off_id = officer_doc.get("officer_id")
+            match_query["$or"] = [
+                {"assigned_officer_id": off_id},
+                {"uploaded_by_officer_id": off_id},
+                {"assigned_officer_id": user_id_str},
+                {"uploaded_by_officer_id": user_id_str}
+            ]
+
+    pipeline = [
+        {"$match": match_query},
+        {
+            "$group": {
+                "_id": "$dtc_code",
+                "meter_count": {"$sum": 1}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+
+    results = await db.customers.aggregate(pipeline).to_list(1000)
+
+    dtc_options = [
+        DTCCodeOption(code=str(item["_id"]), meter_count=int(item["meter_count"]))
+        for item in results if item.get("_id")
+    ]
+
+    total_meters = sum(opt.meter_count for opt in dtc_options)
+
+    return DTCCodesResponse(
+        total_dtcs=len(dtc_options),
+        total_meters=total_meters,
+        dtcs=dtc_options
+    )
+
 @router.get("", response_model=List[CustomerResponse])
 async def list_customers(
     area: Optional[str] = Query(None),
+    dtc_code: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
@@ -60,9 +124,11 @@ async def list_customers(
             {"uploaded_by_officer_id": assigned_officer_id}
         ]
     elif not all_officers:
+        user_id_str = str(current_user["_id"])
         officer_doc = await db.officers.find_one({
             "$or": [
                 {"user_id": current_user["_id"]},
+                {"user_id": user_id_str},
                 {"email": current_user.get("email")}
             ]
         })
@@ -70,8 +136,13 @@ async def list_customers(
             off_id = officer_doc.get("officer_id")
             query["$or"] = [
                 {"assigned_officer_id": off_id},
-                {"uploaded_by_officer_id": off_id}
+                {"uploaded_by_officer_id": off_id},
+                {"assigned_officer_id": user_id_str},
+                {"uploaded_by_officer_id": user_id_str}
             ]
+
+    if dtc_code and dtc_code.lower() != 'all':
+        query["dtc_code"] = dtc_code
 
     if area:
         query["area"] = area
@@ -139,6 +210,7 @@ async def list_customers(
                     customer_id=m.get("customer_id", ""),
                     latitude=float(m.get("latitude", 0.0)),
                     longitude=float(m.get("longitude", 0.0)),
+                    dtc_code=m.get("dtc_code"),
                     assigned_officer_id=m_off_id,
                     assigned_officer_name=officer_names_map.get(m_off_id) if m_off_id else None,
                     uploaded_by_officer_id=m.get("uploaded_by_officer_id")
@@ -164,6 +236,7 @@ async def list_customers(
                 area=cus.get("area", ""),
                 latitude=float(cus.get("latitude", 0.0)),
                 longitude=float(cus.get("longitude", 0.0)),
+                dtc_code=cus.get("dtc_code"),
                 pending_amount=float(cus.get("pending_amount", 0.0)),
                 due_date=cus.get("due_date"),
                 status=cus.get("status", "pending"),
@@ -206,6 +279,8 @@ async def create_customer(
         if off_doc:
             assigned_officer_id = off_doc.get("officer_id")
 
+    dtc_code = CustomerImportService.normalize_dtc_code(request.dtc_code) if request.dtc_code else "4410001"
+
     customer_doc = {
         "customer_id": request.customer_id,
         "name": request.name,
@@ -217,6 +292,7 @@ async def create_customer(
         "longitude": request.longitude,
         "location": location,
         "meter_number": request.meter_number,
+        "dtc_code": dtc_code,
         "pending_amount": float(request.pending_amount) if request.pending_amount is not None else 0.0,
         "due_date": request.due_date,
         "status": request.status or ("overdue" if (request.pending_amount or 0) > 3000 else ("pending" if (request.pending_amount or 0) > 0 else "paid")),
@@ -237,6 +313,7 @@ async def create_customer(
         "customer_id": request.customer_id,
         "latitude": request.latitude,
         "longitude": request.longitude,
+        "dtc_code": dtc_code,
         "assigned_officer_id": assigned_officer_id,
         "uploaded_by_officer_id": customer_doc["uploaded_by_officer_id"]
     }
@@ -259,6 +336,7 @@ async def create_customer(
         area=request.area,
         latitude=request.latitude,
         longitude=request.longitude,
+        dtc_code=dtc_code,
         pending_amount=customer_doc["pending_amount"],
         due_date=customer_doc["due_date"],
         status=customer_doc["status"],
@@ -273,6 +351,7 @@ async def create_customer(
                 customer_id=request.customer_id,
                 latitude=request.latitude,
                 longitude=request.longitude,
+                dtc_code=dtc_code,
                 assigned_officer_id=assigned_officer_id,
                 assigned_officer_name=officer_name,
                 uploaded_by_officer_id=customer_doc["uploaded_by_officer_id"]
@@ -318,6 +397,7 @@ async def get_customer(
                 customer_id=m.get("customer_id", ""),
                 latitude=float(m.get("latitude", 0.0)),
                 longitude=float(m.get("longitude", 0.0)),
+                dtc_code=m.get("dtc_code"),
                 assigned_officer_id=m_off_id,
                 assigned_officer_name=officer_names_map.get(m_off_id) if m_off_id else None,
                 uploaded_by_officer_id=m.get("uploaded_by_officer_id")
@@ -338,6 +418,7 @@ async def get_customer(
         area=cus.get("area", ""),
         latitude=float(cus.get("latitude", 0.0)),
         longitude=float(cus.get("longitude", 0.0)),
+        dtc_code=cus.get("dtc_code"),
         pending_amount=float(cus.get("pending_amount", 0.0)),
         due_date=cus.get("due_date"),
         status=cus.get("status", "pending"),
