@@ -45,9 +45,9 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const handleDownloadSampleCSV = () => {
     const csvContent = [
       'cus_id,cons_no,meter_id,dtc_code,latitude,longitude,total_due_amt,address,area',
-      'CUS10050,Rajesh Kumar,MTR89901,4410001,21.1458,79.0882,4500,Plot 12 Civil Lines,Civil Lines',
-      'CUS10051,Pooja Sharma,MTR89902,4410002,21.1390,79.0720,1850,Shop 5 Commercial Market,Dharampeth',
-      'CUS10052,Anil Deshmukh,MTR89903,4410001,21.1245,79.0680,8900,Block 4 Bajaj Nagar,Bajaj Nagar',
+      'CUS10050,Rajesh Kumar,MTR89901,0441001,21.1458,79.0882,4500,"Plot 12, Civil Lines",Civil Lines',
+      'CUS10051,Pooja Sharma,MTR89902,0441002,21.1390,79.0720,1850,"Shop 5, Commercial Market",Dharampeth',
+      'CUS10052,Anil Deshmukh,MTR89903,0441001,21.1245,79.0680,8900,"Block 4, Bajaj Nagar",Bajaj Nagar',
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -120,7 +120,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 <p className="text-sm font-bold text-blue-900">Need a sample file template?</p>
                 <p className="text-xs text-blue-700 font-medium">Supported CSV / Excel column headers:</p>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {['cus_id', 'cons_no', 'meter_id', 'dtc_code', 'latitude', 'longitude', 'total_due_amt'].map((h) => (
+                  {['cus_id', 'cons_no', 'meter_id', 'dtc_code', 'latitude', 'longitude', 'total_due_amt', 'address', 'area'].map((h) => (
                     <span
                       key={h}
                       className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 border border-blue-200 text-[11px] font-mono font-semibold text-blue-800"
@@ -132,14 +132,14 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               </div>
               <button
                 onClick={handleDownloadSampleCSV}
-                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors shrink-0 self-start"
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors shrink-0 self-start cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download Template
               </button>
             </div>
-            <p className="text-[10px] text-blue-600">
-              Optional columns: <span className="font-mono">address</span>, <span className="font-mono">area</span> • <span className="font-semibold text-blue-900">Note: Dynamic DTC codes are auto-extracted from the dtc_code column.</span>
+            <p className="text-[10px] text-blue-600 font-medium">
+              address and area is optional
             </p>
           </div>
 

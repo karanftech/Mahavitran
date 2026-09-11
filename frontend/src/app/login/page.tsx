@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, Lock, Mail, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { authService } from '@/services/authService';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -19,7 +21,7 @@ export default function LoginPage() {
 
     try {
       await authService.login(email, password);
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.data?.detail) {

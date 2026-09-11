@@ -125,24 +125,6 @@ export default function MapFilters({
         {/* Right Action Icons Group */}
         <div className="flex items-center gap-2 shrink-0 pl-1 border-l border-slate-200">
 
-          {/* Quick DTC Filter Selector Pill directly visible on bar */}
-          <div className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold text-amber-900 shrink-0 transition-colors">
-            <Zap className="w-3 h-3 text-amber-600 fill-amber-500 shrink-0" />
-            <select
-              value={filters.dtcCode || 'all'}
-              onChange={(e) => onFilterChange({ ...filters, dtcCode: e.target.value })}
-              className="bg-transparent text-[11px] font-bold text-amber-900 focus:outline-none cursor-pointer max-w-[110px] truncate"
-              title="Quick Dynamic DTC Filter"
-            >
-              <option value="all">All DTCs ({totalMeters})</option>
-              {dtcList.map((dtc) => (
-                <option key={dtc.code} value={dtc.code}>
-                  DTC {dtc.code} ({dtc.meter_count})
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Filter Icon & Label */}
           <div className="flex flex-col items-center gap-0.5">
             <button
