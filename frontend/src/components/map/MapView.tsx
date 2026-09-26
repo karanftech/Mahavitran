@@ -16,6 +16,7 @@ import NavigationPanel from '@/components/map/NavigationPanel';
 import StreetViewModal from '@/components/map/StreetViewModal';
 import { X, CheckCircle2 } from 'lucide-react';
 import { speakInstruction, stopSpeech } from '@/utils/speech';
+import { calculateHaversineDistance } from '@/utils/geo';
 
 interface MapViewProps {
   customers: Customer[];
@@ -147,6 +148,7 @@ export default function MapView({
   const officerMarkerRef = useRef<any>(null);
   const customerMarkersRef = useRef<Map<string, any>>(new Map());
   const fallbackPolylineRef = useRef<any>(null);
+  const activeLegPolylineRef = useRef<any>(null);
 
   // Leaflet fallback refs
   const leafletMapRef = useRef<any>(null);
@@ -461,13 +463,13 @@ export default function MapView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
-  // ── 5. Draw Route Lines (Multi-Stop Polyline + Single Directions) ───────────────
+  // ── 5. Draw Route Lines (Multi-Stop Circuit + Active Leg Polyline) ─────────────
   useEffect(() => {
     if (mapEngine !== 'google' || !googleMapRef.current) return;
     const google = (window as any).google;
     if (!google) return;
 
-    // 1. MULTI-STOP ROUTE POLYLINE (Always render if multiRoute exists)
+    // 1. MULTI-STOP ROUTE OVERVIEW (Circuit connecting all accounts)
     const multiPath = multiRoute?.coordinates_path;
     if (multiPath && multiPath.length >= 2) {
       const pathLatLngs = multiPath
@@ -486,17 +488,17 @@ export default function MapView({
           fallbackPolylineRef.current = new google.maps.Polyline({
             map: googleMapRef.current,
             path: pathLatLngs,
-            strokeColor: '#0284c7',
-            strokeWeight: 7,
-            strokeOpacity: 0.95,
-            zIndex: 9999,
+            strokeColor: '#6366f1', // Indigo overview path
+            strokeWeight: 5,
+            strokeOpacity: 0.75,
+            zIndex: 9000,
           });
         } else {
           fallbackPolylineRef.current.setPath(pathLatLngs);
           fallbackPolylineRef.current.setMap(googleMapRef.current);
         }
 
-        // Auto-fit camera bounds ONLY ONCE when customer list filter changes and user hasn't manually zoomed/panned
+        // Auto-fit camera bounds ONLY ONCE when customer list filter changes and user hasn't manually interacted
         const customerIdsKey = customers.map((c) => c.customer_id).sort().join(',');
         if (customerIdsKey !== lastFittedMultiRouteRef.current) {
           lastFittedMultiRouteRef.current = customerIdsKey;
@@ -510,105 +512,151 @@ export default function MapView({
           }
         }
       }
-    } else {
-      // Single route fallback if route prop exists
-      const singlePath = route?.coordinates_path;
-      if (singlePath && singlePath.length >= 2) {
-        const pathLatLngs = singlePath
-          .map((pt: any) => {
-            const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
-            const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
-            if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-              return new google.maps.LatLng(lat, lng);
-            }
-            return null;
-          })
-          .filter(Boolean);
-
-        if (pathLatLngs.length >= 2) {
-          if (!fallbackPolylineRef.current) {
-            fallbackPolylineRef.current = new google.maps.Polyline({
-              map: googleMapRef.current,
-              path: pathLatLngs,
-              strokeColor: '#0284c7',
-              strokeWeight: 7,
-              strokeOpacity: 0.95,
-              zIndex: 9999,
-            });
-          } else {
-            fallbackPolylineRef.current.setPath(pathLatLngs);
-            fallbackPolylineRef.current.setMap(googleMapRef.current);
-          }
-        }
-      } else if (fallbackPolylineRef.current) {
-        fallbackPolylineRef.current.setMap(null);
-      }
+    } else if (fallbackPolylineRef.current) {
+      fallbackPolylineRef.current.setMap(null);
     }
 
-    // 2. SINGLE LEG DIRECTIONS SERVICE (Only for single navigation or single pin preview)
-    const isSingleNav = navState?.active && !multiRoute;
-    const dest = isSingleNav ? navState.targetCustomer : (selectedCustomer && !multiRoute ? selectedCustomer : null);
+    // 2. ACTIVE NAVIGATION / SELECTED CONSUMER LEG POLYLINE
+    const dest = navState?.active ? navState.targetCustomer : selectedCustomer;
+    const originLat = officerCoords?.latitude ?? 21.1458;
+    const originLng = officerCoords?.longitude ?? 79.0882;
 
-    if (!directionsServiceRef.current || !directionsRendererRef.current || !dest) {
+    if (!dest) {
+      if (activeLegPolylineRef.current) {
+        activeLegPolylineRef.current.setMap(null);
+      }
       if (directionsRendererRef.current) {
         directionsRendererRef.current.setMap(null);
       }
       return;
     }
 
-    const originLat = officerCoords?.latitude ?? 21.1458;
-    const originLng = officerCoords?.longitude ?? 79.0882;
+    // Prepare active leg path coordinates (from route prop or street-grid geometry)
+    let activeLegPoints: any[] = [];
+    if (route?.coordinates_path && route.coordinates_path.length >= 2) {
+      activeLegPoints = route.coordinates_path
+        .map((pt: any) => {
+          const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
+          const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
+          return lat !== null && lng !== null ? new google.maps.LatLng(lat, lng) : null;
+        })
+        .filter(Boolean);
+    } else {
+      activeLegPoints = [
+        new google.maps.LatLng(originLat, originLng),
+        new google.maps.LatLng(dest.latitude, originLng),
+        new google.maps.LatLng(dest.latitude, dest.longitude),
+      ];
+    }
 
-    const fingerprint = `${originLat.toFixed(3)}_${originLng.toFixed(3)}_${dest.customer_id}`;
-    if (fingerprint === lastDirectionsKeyRef.current) return;
-    lastDirectionsKeyRef.current = fingerprint;
-
-    const request = {
-      origin: new google.maps.LatLng(originLat, originLng),
-      destination: new google.maps.LatLng(dest.latitude, dest.longitude),
-      travelMode: google.maps.TravelMode.DRIVING,
-      unitSystem: google.maps.UnitSystem.METRIC,
-    };
-
-    directionsServiceRef.current.route(request, (result: any, status: any) => {
-      if (status === google.maps.DirectionsStatus.OK && result && result.routes && result.routes.length > 0) {
-        directionsRendererRef.current.setOptions({ preserveViewport: true });
-        directionsRendererRef.current.setMap(googleMapRef.current);
-        directionsRendererRef.current.setDirections(result);
-
-        if (onDirectionsCalculatedRef.current) {
-          const route0 = result.routes[0];
-          const leg0 = route0.legs && route0.legs.length > 0 ? route0.legs[0] : null;
-
-          const steps = leg0 && leg0.steps ? leg0.steps.map((s: any) => ({
-            instruction: s.instructions ? s.instructions.replace(/<[^>]*>/g, '') : '',
-            distance_text: s.distance ? s.distance.text : '',
-            duration_text: s.duration ? s.duration.text : '',
-            start_location: s.start_location ? { latitude: s.start_location.lat(), longitude: s.start_location.lng() } : undefined,
-            end_location: s.end_location ? { latitude: s.end_location.lat(), longitude: s.end_location.lng() } : undefined,
-          })) : [];
-
-          const pathCoords: Coordinates[] = route0.overview_path ? route0.overview_path.map((pt: any) => ({
-            latitude: pt.lat(),
-            longitude: pt.lng(),
-          })) : [];
-
-          onDirectionsCalculatedRef.current({
-            distance_meters: leg0 && leg0.distance ? leg0.distance.value : 0,
-            distance_text: leg0 && leg0.distance ? leg0.distance.text : '0 m',
-            duration_seconds: leg0 && leg0.duration ? leg0.duration.value : 0,
-            duration_text: leg0 && leg0.duration ? leg0.duration.text : '0 min',
-            start_address: leg0 ? leg0.start_address : '',
-            end_address: leg0 ? leg0.end_address : '',
-            encoded_polyline: route0.overview_polyline || '',
-            coordinates_path: pathCoords,
-            steps,
-          });
-        }
+    // Render bright blue polyline immediately so the route is NEVER missing
+    if (activeLegPoints.length >= 2) {
+      if (!activeLegPolylineRef.current) {
+        activeLegPolylineRef.current = new google.maps.Polyline({
+          map: googleMapRef.current,
+          path: activeLegPoints,
+          strokeColor: '#0284c7', // Vibrant electric cyan/blue
+          strokeWeight: 7,
+          strokeOpacity: 0.95,
+          zIndex: 10000,
+        });
       } else {
-        directionsRendererRef.current.setMap(null);
+        activeLegPolylineRef.current.setPath(activeLegPoints);
+        activeLegPolylineRef.current.setMap(googleMapRef.current);
       }
-    });
+    }
+
+    // 3. Optional Google Directions Service enhancement
+    if (directionsServiceRef.current && directionsRendererRef.current) {
+      const fingerprint = `${originLat.toFixed(3)}_${originLng.toFixed(3)}_${dest.customer_id}`;
+      if (fingerprint === lastDirectionsKeyRef.current) return;
+      lastDirectionsKeyRef.current = fingerprint;
+
+      const request = {
+        origin: new google.maps.LatLng(originLat, originLng),
+        destination: new google.maps.LatLng(dest.latitude, dest.longitude),
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.METRIC,
+      };
+
+      directionsServiceRef.current.route(request, (result: any, status: any) => {
+        if (status === google.maps.DirectionsStatus.OK && result && result.routes && result.routes.length > 0) {
+          directionsRendererRef.current.setOptions({ preserveViewport: true });
+          directionsRendererRef.current.setMap(googleMapRef.current);
+          directionsRendererRef.current.setDirections(result);
+          if (activeLegPolylineRef.current) {
+            activeLegPolylineRef.current.setMap(null);
+          }
+
+          if (onDirectionsCalculatedRef.current) {
+            const route0 = result.routes[0];
+            const leg0 = route0.legs && route0.legs.length > 0 ? route0.legs[0] : null;
+
+            const steps = leg0 && leg0.steps ? leg0.steps.map((s: any) => ({
+              instruction: s.instructions ? s.instructions.replace(/<[^>]*>/g, '') : '',
+              distance_text: s.distance ? s.distance.text : '',
+              duration_text: s.duration ? s.duration.text : '',
+              start_location: s.start_location ? { latitude: s.start_location.lat(), longitude: s.start_location.lng() } : undefined,
+              end_location: s.end_location ? { latitude: s.end_location.lat(), longitude: s.end_location.lng() } : undefined,
+            })) : [];
+
+            const pathCoords: Coordinates[] = route0.overview_path ? route0.overview_path.map((pt: any) => ({
+              latitude: pt.lat(),
+              longitude: pt.lng(),
+            })) : [];
+
+            onDirectionsCalculatedRef.current({
+              distance_meters: leg0 && leg0.distance ? leg0.distance.value : 0,
+              distance_text: leg0 && leg0.distance ? leg0.distance.text : '0 m',
+              duration_seconds: leg0 && leg0.duration ? leg0.duration.value : 0,
+              duration_text: leg0 && leg0.duration ? leg0.duration.text : '0 min',
+              start_address: leg0 ? leg0.start_address : '',
+              end_address: leg0 ? leg0.end_address : '',
+              encoded_polyline: route0.overview_polyline || '',
+              coordinates_path: pathCoords,
+              steps,
+            });
+          }
+        } else {
+          // If Google Directions fails (e.g. billing not enabled), keep activeLegPolyline visible
+          if (directionsRendererRef.current) {
+            directionsRendererRef.current.setMap(null);
+          }
+          if (activeLegPolylineRef.current) {
+            activeLegPolylineRef.current.setMap(googleMapRef.current);
+          }
+
+          if (onDirectionsCalculatedRef.current && (!route || !route.duration_text)) {
+            const dist = calculateHaversineDistance(originLat, originLng, dest.latitude, dest.longitude) * 1.35;
+            const durSec = dist / 6.94;
+            const distText = dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} m`;
+            const durText = durSec >= 60 ? `${Math.round(durSec / 60)} min` : '< 1 min';
+
+            onDirectionsCalculatedRef.current({
+              distance_meters: Math.round(dist),
+              distance_text: distText,
+              duration_seconds: Math.round(durSec),
+              duration_text: durText,
+              start_address: `Officer Location (${originLat.toFixed(4)}, ${originLng.toFixed(4)})`,
+              end_address: `Meter Location (${dest.latitude.toFixed(4)}, ${dest.longitude.toFixed(4)})`,
+              encoded_polyline: '',
+              coordinates_path: [
+                { latitude: originLat, longitude: originLng },
+                { latitude: dest.latitude, longitude: originLng },
+                { latitude: dest.latitude, longitude: dest.longitude },
+              ],
+              steps: [
+                {
+                  instruction: `Proceed towards meter at ${dest.address || dest.name}`,
+                  distance_text: distText,
+                  duration_text: durText,
+                },
+              ],
+            });
+          }
+        }
+      });
+    }
   }, [
     mapEngine,
     officerCoords,
