@@ -68,15 +68,12 @@ async def get_dtc_codes(
         })
         if officer_doc:
             off_id = officer_doc.get("officer_id")
-            officer_filter = [
+            match_query["$or"] = [
                 {"assigned_officer_id": off_id},
                 {"uploaded_by_officer_id": off_id},
                 {"assigned_officer_id": user_id_str},
                 {"uploaded_by_officer_id": user_id_str}
             ]
-            assigned_count = await db.customers.count_documents({"$or": officer_filter})
-            if assigned_count > 0:
-                match_query["$or"] = officer_filter
 
     pipeline = [
         {"$match": match_query},
@@ -137,15 +134,12 @@ async def list_customers(
         })
         if officer_doc:
             off_id = officer_doc.get("officer_id")
-            officer_filter = [
+            query["$or"] = [
                 {"assigned_officer_id": off_id},
                 {"uploaded_by_officer_id": off_id},
                 {"assigned_officer_id": user_id_str},
                 {"uploaded_by_officer_id": user_id_str}
             ]
-            assigned_count = await db.customers.count_documents({"$or": officer_filter})
-            if assigned_count > 0:
-                query["$or"] = officer_filter
 
     if dtc_code and dtc_code.lower() != 'all':
         query["dtc_code"] = dtc_code

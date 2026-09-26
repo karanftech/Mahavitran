@@ -43,18 +43,13 @@ async def get_officer_dashboard(
         officer_id = officer_doc.get("officer_id") if officer_doc else None
 
         # Build query filters for officer isolation
-        cus_filter = {}
+        cus_filter = {"$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]} if officer_id else {}
         pending_match = {"status": {"$in": ["pending", "overdue", "partially_paid"]}}
         paid_match = {"status": "paid"}
         if officer_id:
-            assigned_count = await db.customers.count_documents({
-                "$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]
-            })
-            if assigned_count > 0:
-                officer_or = [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]
-                cus_filter = {"$or": officer_or}
-                pending_match["$or"] = officer_or
-                paid_match["$or"] = officer_or
+            officer_or = [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]
+            pending_match["$or"] = officer_or
+            paid_match["$or"] = officer_or
 
         pmt_filter = {"officer_id": officer_id} if officer_id else {}
         today_pmt_match = {"created_at": {"$gte": today_start}}
