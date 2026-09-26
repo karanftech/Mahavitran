@@ -107,7 +107,7 @@ export default function NavigationPanel({
   // Minimized pill view
   if (isMinimized) {
     return (
-      <div className="absolute bottom-6 left-4 z-40 animate-fade-in">
+      <div className="absolute top-4 left-4 z-40 animate-fade-in">
         <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-full px-3.5 py-2 shadow-2xl flex items-center gap-3 text-white">
           <button
             onClick={() => setIsMinimized(false)}
@@ -119,7 +119,7 @@ export default function NavigationPanel({
 
           <div onClick={() => setIsMinimized(false)} className="cursor-pointer flex items-center gap-2">
             <span className="text-sm font-black text-sky-400">
-              {navState.durationText || '< 1 min'}
+              {navState.durationText || 'Calculating...'}
             </span>
             <span className="text-xs text-slate-400 font-semibold">
               ({navState.distanceText})
@@ -148,126 +148,7 @@ export default function NavigationPanel({
     );
   }
 
-  // Full Active Turn-By-Turn Navigation Card
-  return (
-    <div className="absolute bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-96 z-40 animate-slide-up">
-      <div className="bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden text-white">
-        
-        {/* Top Header / Direction Strip */}
-        <div className="flex items-stretch border-b border-slate-800">
-          {/* Direction Arrow Block */}
-          <div className="bg-sky-600 flex items-center justify-center px-4 shrink-0 min-w-[54px]">
-            {getDirectionIcon(currentInstruction)}
-          </div>
-
-          {/* Instruction & Duration Text */}
-          <div className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-900/95">
-            <div className="flex items-center justify-between gap-1 mb-0.5">
-              <span className="text-[10px] uppercase tracking-wider font-extrabold text-sky-400 truncate">
-                {multiRoute ? `Stop ${currentStopIndex + 1} of ${multiRoute.stops.length}` : 'Navigating'}
-              </span>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs font-black text-white">
-                  {navState.durationText || '< 1 min'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-semibold">
-                  ({navState.distanceText})
-                </span>
-              </div>
-            </div>
-            <p className="text-xs font-extrabold text-white leading-snug line-clamp-2">
-              {currentInstruction}
-            </p>
-          </div>
-
-          {/* Action icons (Mute, Minimize, Exit) */}
-          <div className="flex items-center gap-1 px-2.5 bg-slate-900/95 border-l border-slate-800 shrink-0">
-            <button
-              onClick={handleToggleMute}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                isMuted
-                  ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-slate-700'
-                  : 'bg-blue-600/30 text-sky-300 border-blue-500/40 hover:bg-blue-600/50'
-              }`}
-              title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-            >
-              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-              title="Minimize"
-            >
-              <Minimize2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onExitNavigation}
-              className="p-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 transition-colors cursor-pointer"
-              title="Exit Navigation"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Multi-Stop Sequence Stepper (If Multi-Route) */}
-        {multiRoute && onSelectStopIndex && multiRoute.stops.length > 1 && (
-          <div className="px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700/60 flex items-center justify-between text-xs">
-            <button
-              disabled={currentStopIndex <= 0}
-              onClick={() => onSelectStopIndex(currentStopIndex - 1)}
-              className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Prev Stop</span>
-            </button>
-            <span className="text-[11px] font-extrabold text-sky-400">
-              Account {currentStopIndex + 1} of {multiRoute.stops.length}
-            </span>
-            <button
-              disabled={currentStopIndex >= multiRoute.stops.length - 1}
-              onClick={() => onSelectStopIndex(currentStopIndex + 1)}
-              className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span>Next Stop</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Consumer Destination Information */}
-        <div className="px-4 py-2.5 bg-slate-800/50 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black text-white truncate flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-              <span>{target.name}</span>
-            </p>
-            <p className="text-[11px] text-slate-300 truncate mt-0.5">
-              Meter: <span className="font-bold text-sky-300">{target.meter_number}</span> • {target.address}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-[10px] uppercase font-bold text-slate-400">Pending</p>
-            <p className="text-xs font-black text-amber-400">
-              ₹{target.pending_amount?.toLocaleString('en-IN') || 0}
-            </p>
-          </div>
-        </div>
-
-        {/* Action Buttons: Collect Payment */}
-        {onCollectPayment && (
-          <div className="p-2.5 bg-slate-900 border-t border-slate-800">
-            <button
-              onClick={() => onCollectPayment(target)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Arrived — Collect ₹{target.pending_amount?.toLocaleString('en-IN') || 0}</span>
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // All UI elements from Image 1 removed — only returning null while keeping background speech instructions active
+  return null;
 }
 

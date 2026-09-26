@@ -1,5 +1,4 @@
 import math
-import asyncio
 import httpx
 import logging
 from typing import Dict, Any, List, Tuple
@@ -91,7 +90,6 @@ def decode_polyline(polyline_str: str) -> List[Coordinates]:
     return coordinates
 
 class MapsService:
-    _google_routes_api_available: bool = True
 
     @staticmethod
     async def calculate_route(
@@ -102,10 +100,10 @@ class MapsService:
         Calculate route using Google Routes API if valid key available,
         else use OSRM (Open Source Routing Machine) for exact real-road street geometry & turn steps.
         """
-        # 1. Try Google Routes API if valid key provided and not disabled
-        if MapsService._google_routes_api_available and settings.GOOGLE_MAPS_API_KEY and settings.GOOGLE_MAPS_API_KEY not in ("YOUR_GOOGLE_MAPS_API_KEY_HERE", "AIzaSyBmEXi6-U51MCj8NO_6lKrptP9IYSH39Is"):
+        # 1. Try Google Routes API if valid key provided
+        if settings.GOOGLE_MAPS_API_KEY and settings.GOOGLE_MAPS_API_KEY not in ("YOUR_GOOGLE_MAPS_API_KEY_HERE", "AIzaSyBmEXi6-U51MCj8NO_6lKrptP9IYSH39Is"):
             try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
+                async with httpx.AsyncClient(timeout=8.0) as client:
                     url = "https://routes.googleapis.com/directions/v2:computeRoutes"
                     headers = {
                         "Content-Type": "application/json",
@@ -143,11 +141,7 @@ class MapsService:
                                 ],
                                 steps=[]
                             )
-                    else:
-                        MapsService._google_routes_api_available = False
-                        logger.info("Google Routes API not enabled, caching fallback to local/OSRM")
             except Exception as e:
-                MapsService._google_routes_api_available = False
                 logger.warning(f"Google Routes API call failed, using OSRM fallback: {e}")
 
         # 2. Try OSRM (Open Source Routing Machine) for exact real-road street geometry & turn steps
@@ -284,10 +278,6 @@ class MapsService:
         origin_lng: float,
         customers: List[MultiRouteCustomerInput]
     ) -> MultiRouteCalculationResponse:
-        """
-        Ultra-fast TSP Nearest-Neighbor Route Optimizer with street-grid geometry path.
-        Completes in < 10ms for up to 500 customers without network latency.
-        """
         if not customers:
             return MultiRouteCalculationResponse(
                 total_distance_meters=0,
@@ -298,39 +288,49 @@ class MapsService:
                 stops=[]
             )
 
-        # Fast flat-earth projected coordinates for instant distance calculations
-        lat_scale = 111000.0
-        lng_scale = 111000.0 * math.cos(math.radians(origin_lat))
-
-        # Pre-project to local metric coordinates
-        pts = [
-            (
-                idx,
-                c,
-                (c.latitude - origin_lat) * lat_scale,
-                (c.longitude - origin_lng) * lng_scale
-            )
-            for idx, c in enumerate(customers)
-        ]
-
-        unvisited = list(range(len(pts)))
-        tour: List[int] = []
-        curr_x, curr_y = 0.0, 0.0
+        # 1. TSP Nearest-Neighbor Algorithm starting from Origin
+        unvisited = list(range(len(customers)))
+        tour = []
+        curr_lat, curr_lng = origin_lat, origin_lng
 
         while unvisited:
-            best_i = None
-            best_d2 = float("inf")
-            for i in unvisited:
-                item = pts[i]
-                dx = item[2] - curr_x
-                dy = item[3] - curr_y
-                d2 = dx * dx + dy * dy
-                if d2 < best_d2:
-                    best_d2 = d2
-                    best_i = i
-            tour.append(best_i)
-            unvisited.remove(best_i)
-            curr_x, curr_y = pts[best_i][2], pts[best_i][3]
+            best_idx = None
+            best_dist = float('inf')
+            for idx in unvisited:
+                c = customers[idx]
+                d = haversine_distance(curr_lat, curr_lng, c.latitude, c.longitude)
+                if d < best_dist:
+                    best_dist = d
+                    best_idx = idx
+            tour.append(best_idx)
+            unvisited.remove(best_idx)
+            curr_lat, curr_lng = customers[best_idx].latitude, customers[best_idx].longitude
+
+        # 2. 2-Opt Optimization for TSP
+        def get_tour_distance(t):
+            dist = 0.0
+            prev_lat, prev_lng = origin_lat, origin_lng
+            for i in t:
+                c = customers[i]
+                dist += haversine_distance(prev_lat, prev_lng, c.latitude, c.longitude)
+                prev_lat, prev_lng = c.latitude, c.longitude
+            return dist
+
+        improved = True
+        while improved:
+            improved = False
+            best_d = get_tour_distance(tour)
+            for i in range(len(tour) - 1):
+                for j in range(i + 1, len(tour)):
+                    new_tour = tour[:i] + tour[i:j+1][::-1] + tour[j+1:]
+                    new_d = get_tour_distance(new_tour)
+                    if new_d < best_d - 1.0:
+                        tour = new_tour
+                        best_d = new_d
+                        improved = True
+                        break
+                if improved:
+                    break
 
         # Build Waypoint Sequence: [Origin, Stop 1, Stop 2, ..., Stop N]
         points = [(origin_lat, origin_lng)] + [
@@ -342,50 +342,69 @@ class MapsService:
         full_coords_path: List[Coordinates] = [Coordinates(latitude=origin_lat, longitude=origin_lng)]
         stops: List[MultiRouteStop] = []
 
-        for seq_i in range(len(tour)):
-            c_idx = tour[seq_i]
-            cust = customers[c_idx]
-            prev_p = points[seq_i]
-            curr_p = points[seq_i + 1]
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for seq_i in range(len(tour)):
+                c_idx = tour[seq_i]
+                cust = customers[c_idx]
+                prev_p = points[seq_i]
+                curr_p = points[seq_i + 1]
 
-            air_d = haversine_distance(prev_p[0], prev_p[1], curr_p[0], curr_p[1])
-            leg_dist = air_d * 1.35
-            leg_dur = leg_dist / 6.94  # Average urban electric utility bike speed (~25 km/h)
+                leg_dist = 0.0
+                leg_dur = 0.0
+                leg_coords: List[Coordinates] = []
 
-            # Street-grid corner coordinates for smooth turn visualization
-            mid_lat = curr_p[0]
-            mid_lng = prev_p[1]
-            leg_coords = [
-                Coordinates(latitude=prev_p[0], longitude=prev_p[1]),
-                Coordinates(latitude=mid_lat, longitude=mid_lng),
-                Coordinates(latitude=curr_p[0], longitude=curr_p[1])
-            ]
+                try:
+                    osrm_url = f"https://router.project-osrm.org/route/v1/driving/{prev_p[1]},{prev_p[0]};{curr_p[1]},{curr_p[0]}?overview=full&geometries=geojson"
+                    res = await client.get(osrm_url)
+                    if res.status_code == 200:
+                        data = res.json()
+                        if data.get("code") == "Ok" and data.get("routes"):
+                            r = data["routes"][0]
+                            leg_dist = float(r.get("distance", 0))
+                            leg_dur = float(r.get("duration", 0))
+                            geo_coords = r.get("geometry", {}).get("coordinates", [])
+                            leg_coords = [Coordinates(latitude=pt[1], longitude=pt[0]) for pt in geo_coords]
+                except Exception as e:
+                    logger.warning(f"OSRM leg routing error: {e}")
 
-            total_distance += leg_dist
-            total_duration += leg_dur
+                if not leg_coords or len(leg_coords) < 2:
+                    air_d = haversine_distance(prev_p[0], prev_p[1], curr_p[0], curr_p[1])
+                    leg_dist = air_d * 1.35
+                    leg_dur = leg_dist / 6.94
+                    # Generate street corner waypoint so fallback route follows road grid instead of cutting across blocks
+                    mid_lat = curr_p[0]
+                    mid_lng = prev_p[1]
+                    leg_coords = [
+                        Coordinates(latitude=prev_p[0], longitude=prev_p[1]),
+                        Coordinates(latitude=mid_lat, longitude=mid_lng),
+                        Coordinates(latitude=curr_p[0], longitude=curr_p[1])
+                    ]
 
-            for pt in leg_coords:
-                if not (full_coords_path and full_coords_path[-1].latitude == pt.latitude and full_coords_path[-1].longitude == pt.longitude):
-                    full_coords_path.append(pt)
+                total_distance += leg_dist
+                total_duration += leg_dur
 
-            dist_text = f"{leg_dist / 1000.0:.2f} km" if leg_dist >= 1000 else f"{int(leg_dist)} m"
-            dur_text = f"{int(leg_dur // 60)} min" if leg_dur >= 60 else "< 1 min"
+                for pt in leg_coords:
+                    if not (full_coords_path and full_coords_path[-1].latitude == pt.latitude and full_coords_path[-1].longitude == pt.longitude):
+                        full_coords_path.append(pt)
 
-            stops.append(
-                MultiRouteStop(
-                    sequence=seq_i + 1,
-                    customer_id=cust.customer_id,
-                    name=cust.name,
-                    meter_number=cust.meter_number,
-                    pending_amount=cust.pending_amount,
-                    address=cust.address or "",
-                    latitude=cust.latitude,
-                    longitude=cust.longitude,
-                    distance_from_prev_meters=round(leg_dist, 1),
-                    distance_from_prev_text=dist_text,
-                    duration_from_prev_text=dur_text
+                dist_text = f"{leg_dist / 1000.0:.2f} km" if leg_dist >= 1000 else f"{int(leg_dist)} m"
+                dur_text = f"{int(leg_dur // 60)} min" if leg_dur >= 60 else "< 1 min"
+
+                stops.append(
+                    MultiRouteStop(
+                        sequence=seq_i + 1,
+                        customer_id=cust.customer_id,
+                        name=cust.name,
+                        meter_number=cust.meter_number,
+                        pending_amount=cust.pending_amount,
+                        address=cust.address or "",
+                        latitude=cust.latitude,
+                        longitude=cust.longitude,
+                        distance_from_prev_meters=round(leg_dist, 1),
+                        distance_from_prev_text=dist_text,
+                        duration_from_prev_text=dur_text
+                    )
                 )
-            )
 
         total_dist_text = f"{total_distance / 1000.0:.2f} km" if total_distance >= 1000 else f"{int(total_distance)} m"
         total_dur_text = f"{int(total_duration // 60)} min" if total_duration >= 60 else "< 1 min"
