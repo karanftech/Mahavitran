@@ -200,36 +200,32 @@ function MapPageContent() {
   const handleStartMultiNavigation = async () => {
     if (filteredCustomers.length === 0) return;
     const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
+    setIsCalculatingMultiRoute(true);
+    try {
+      const res = await routeService.calculateMultiRoute(effectiveCoords, filteredCustomers);
+      setMultiRoute(res);
+      setIsMultiNavigating(true);
+      setCurrentStopIndex(0);
 
-    // If multiRoute was already computed, start navigation immediately with zero wait time!
-    let routeData = multiRoute;
-    if (!routeData || !routeData.stops || routeData.stops.length === 0) {
-      setIsCalculatingMultiRoute(true);
-      try {
-        routeData = await routeService.calculateMultiRoute(effectiveCoords, filteredCustomers);
-        setMultiRoute(routeData);
-      } catch (err) {
-        console.error('Failed to calculate multi-route:', err);
-      } finally {
-        setIsCalculatingMultiRoute(false);
+      if (res.stops && res.stops.length > 0) {
+        const firstStopId = res.stops[0].customer_id;
+        const firstCust = allCustomers.find((c) => c.customer_id === firstStopId) || filteredCustomers[0];
+        setSelectedCustomer(firstCust);
+        startNavigation(firstCust, effectiveCoords);
       }
-    }
-
-    setIsMultiNavigating(true);
-    setCurrentStopIndex(0);
-
-    if (routeData && routeData.stops && routeData.stops.length > 0) {
-      const firstStopId = routeData.stops[0].customer_id;
-      const firstCust = allCustomers.find((c) => c.customer_id === firstStopId) || filteredCustomers[0];
-      setSelectedCustomer(firstCust);
-      startNavigation(firstCust, effectiveCoords);
-    } else if (filteredCustomers[0]) {
-      startNavigation(filteredCustomers[0], effectiveCoords);
+    } catch (err) {
+      console.error('Failed to calculate multi-route:', err);
+      if (filteredCustomers[0]) {
+        startNavigation(filteredCustomers[0], effectiveCoords);
+      }
+    } finally {
+      setIsCalculatingMultiRoute(false);
     }
   };
 
   const handleStopMultiNavigation = () => {
     setIsMultiNavigating(false);
+    setMultiRoute(null);
     setCurrentStopIndex(0);
     stopNavigation();
   };
@@ -241,8 +237,7 @@ function MapPageContent() {
     const found = allCustomers.find((c) => c.customer_id === stop.customer_id);
     if (found) {
       setSelectedCustomer(found);
-      const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
-      startNavigation(found, effectiveCoords);
+      if (officerCoords) startNavigation(found, officerCoords);
     }
   };
 
@@ -275,25 +270,14 @@ function MapPageContent() {
 
   const navStateObj = useMemo(() => {
     if (!isNavigating || !navTargetCustomer) return undefined;
-    const effectiveOfficer = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
-    const estDist = distanceMeters || (calculateHaversineDistance(
-      effectiveOfficer.latitude,
-      effectiveOfficer.longitude,
-      navTargetCustomer.latitude,
-      navTargetCustomer.longitude
-    ) * 1.35);
-    const estDur = durationSeconds || (estDist / 6.94);
-    const fallbackDistText = estDist >= 1000 ? `${(estDist / 1000).toFixed(1)} km` : `${Math.round(estDist)} m`;
-    const fallbackDurText = estDur >= 60 ? `${Math.round(estDur / 60)} min` : '< 1 min';
-
     return {
       active: true,
       destination: { lat: navTargetCustomer.latitude, lng: navTargetCustomer.longitude },
       targetCustomer: navTargetCustomer,
-      distanceMeters: activeRoute?.distance_meters || Math.round(estDist),
-      durationSeconds: activeRoute?.duration_seconds || Math.round(estDur),
-      distanceText: activeRoute?.distance_text || fallbackDistText,
-      durationText: activeRoute?.duration_text || fallbackDurText,
+      distanceMeters: activeRoute?.distance_meters || distanceMeters || 0,
+      durationSeconds: activeRoute?.duration_seconds || durationSeconds || 0,
+      distanceText: activeRoute?.distance_text || 'Nearby',
+      durationText: activeRoute?.duration_text || 'Calculating...',
       currentStepIndex,
       currentStepInstruction: currentNavStepInstruction || `Navigate to meter at ${navTargetCustomer.address}`,
       isOffRoute,
@@ -309,7 +293,6 @@ function MapPageContent() {
     currentNavStepInstruction,
     isOffRoute,
     isFollowing,
-    officerCoords,
   ]);
 
   const handleSelectMapCustomer = React.useCallback(
@@ -373,7 +356,7 @@ function MapPageContent() {
           officerHeading={officerHeading}
           selectedCustomer={selectedCustomer}
           route={activeRoute}
-          multiRoute={multiRoute}
+          multiRoute={isMultiNavigating ? multiRoute : null}
           activeStopIndex={currentStopIndex}
           navState={navStateObj}
           streetView={streetView}

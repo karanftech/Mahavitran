@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { CreditCard, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
-import { Customer, PaymentRecord, PaymentCollectionPayload } from '@/types';
+import { Customer, PaymentRecord } from '@/types';
 import { formatCurrency } from '@/utils/formatters';
 import { paymentService } from '@/services/paymentService';
 import { offlineService } from '@/services/offlineService';
@@ -61,12 +61,12 @@ export default function PaymentModal({
     setIsSubmitting(true);
 
     // Map UI payment method values to backend-accepted values
-    const backendPaymentMethod: 'cash' | 'upi' | 'online' | 'other' | 'upi_online' | 'cheque' =
-      paymentMethod === 'upi_online' ? 'upi' : (paymentMethod as any);
+    const backendPaymentMethod: string =
+      paymentMethod === 'upi_online' ? 'upi' : paymentMethod;
 
-    const payload: PaymentCollectionPayload = {
+    const payload = {
       customer_id: customer.customer_id,
-      meter_id: customer.meters?.[0]?.meter_id || customer.meter_number || 'MTR-DEFAULT',
+      meter_id: customer.meters?.[0]?.meter_id,
       amount: amt,
       payment_method: backendPaymentMethod,
       remarks: remarks.trim() || undefined,

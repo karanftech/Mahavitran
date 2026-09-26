@@ -51,7 +51,7 @@ export const routeService = {
         destination,
         customer_id: customerId,
         meter_id: meterId,
-      }, { timeout: 6000 });
+      });
       const data = response.data;
       if (data.encoded_polyline && (!data.coordinates_path || data.coordinates_path.length <= 2)) {
         const decoded = decodePolyline(data.encoded_polyline);
@@ -127,7 +127,7 @@ export const routeService = {
           address: c.address,
           priority: c.priority,
         })),
-      }, { timeout: 8000 });
+      });
       return response.data;
     } catch (err) {
       console.warn('Backend calculate-multi endpoint offline, performing client-side TSP optimization:', err);
