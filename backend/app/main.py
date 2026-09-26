@@ -42,10 +42,11 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-# Enable CORS for Next.js frontend (Supports Vercel, Render, Localhost, and custom domains)
+# Enable CORS for Next.js frontend (Supports Vercel, Render, Localhost, DevTunnels, and custom domains)
+_configured_origins = list(set(settings.cors_origins + ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"]))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"],
+    allow_origins=_configured_origins,
     allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
