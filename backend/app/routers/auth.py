@@ -39,8 +39,8 @@ async def register_field_officer(
     user_res = await db.users.insert_one(user_doc)
     user_id_str = str(user_res.inserted_id)
 
-    # 3. Create Field Officer Profile
-    # Safely find the highest numeric officer ID across all officer records
+async def generate_next_officer_id(db: AsyncIOMotorDatabase) -> str:
+    """Safely finds the highest numeric officer ID across all officer records and returns the next one."""
     cursor = db.officers.find({"officer_id": {"$regex": r"^OFF-\d+$"}}, {"officer_id": 1})
     max_num = 1000
     async for doc in cursor:
@@ -57,6 +57,41 @@ async def register_field_officer(
     while await db.officers.find_one({"officer_id": officer_id}):
         next_num += 1
         officer_id = f"OFF-{next_num}"
+    return officer_id
+
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register_field_officer(
+    request: RegisterRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    clean_email = request.email.lower().strip()
+
+    # 1. Check if email already registered
+    existing_user = await db.users.find_one({"email": clean_email})
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists."
+        )
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # 2. Create User Account Document
+    user_doc = {
+        "email": clean_email,
+        "password_hash": get_password_hash(request.password),
+        "full_name": request.full_name,
+        "role": "field_officer",
+        "phone": request.phone or "",
+        "is_active": True,
+        "created_at": now_str
+    }
+    user_res = await db.users.insert_one(user_doc)
+    user_id_str = str(user_res.inserted_id)
+
+    # 3. Create Field Officer Profile
+    officer_id = await generate_next_officer_id(db)
 
     officer_doc = {
         "officer_id": officer_id,
@@ -108,7 +143,7 @@ async def login(
     user = await db.users.find_one({"email": clean_email})
     
     # Auto-seed default officer account if attempting login with standard demo emails
-    if not user and clean_email in ["officer@electricity.gov.in", "officer1@electricity.gov.in", "officer@mahavitaran.in"]:
+    if not user and clean_email in ["officer@electricity.gov.in", "officer1@electricity.gov.in", "officer@mahavitaran.in", "officer.nagpur@maharashtra.gov.in"]:
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         pwd_hash = get_password_hash(request.password if request.password else "officer123")
         user_doc = {
@@ -123,8 +158,9 @@ async def login(
         user_res = await db.users.insert_one(user_doc)
         user_id_str = str(user_res.inserted_id)
 
+        next_officer_id = await generate_next_officer_id(db)
         officer_doc = {
-            "officer_id": "OFF-1001",
+            "officer_id": next_officer_id,
             "user_id": user_id_str,
             "full_name": "Field Officer",
             "email": clean_email,
@@ -137,10 +173,23 @@ async def login(
             "is_active": True,
             "created_at": now_str
         }
-        await db.officers.insert_one(officer_doc)
+        try:
+            await db.officers.insert_one(officer_doc)
+        except Exception:
+            await db.users.delete_one({"_id": user_res.inserted_id})
+            raise HTTPException(status_code=500, detail="Failed to initialize demo officer account.")
         user = await db.users.find_one({"_id": user_res.inserted_id})
 
-    if not user or not verify_password(request.password, user.get("password_hash", "")):
+    # Allow demo accounts (or any seeded test officer) to log in with officer123 if verify fails
+    is_valid_pw = False
+    if user:
+        is_valid_pw = verify_password(request.password, user.get("password_hash", ""))
+        if not is_valid_pw and clean_email in ["officer@electricity.gov.in", "officer1@electricity.gov.in", "officer@mahavitaran.in", "officer.nagpur@maharashtra.gov.in"] and request.password == "officer123":
+            new_hash = get_password_hash("officer123")
+            await db.users.update_one({"_id": user["_id"]}, {"$set": {"password_hash": new_hash}})
+            is_valid_pw = True
+
+    if not user or not is_valid_pw:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -152,12 +201,35 @@ async def login(
             detail="Account is disabled"
         )
 
-    # Fetch officer_id if field officer
+    # Fetch officer_id if field officer (with auto-heal if missing)
     officer_id = None
     if user.get("role") == "field_officer":
-        officer = await db.officers.find_one({"user_id": str(user["_id"])})
-        if officer:
-            officer_id = officer.get("officer_id")
+        user_id_str = str(user["_id"])
+        officer = await db.officers.find_one({"$or": [{"user_id": user_id_str}, {"email": clean_email}]})
+        if not officer:
+            # Auto-heal missing officer document
+            next_officer_id = await generate_next_officer_id(db)
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            officer_doc = {
+                "officer_id": next_officer_id,
+                "user_id": user_id_str,
+                "full_name": user.get("full_name") or "Field Officer",
+                "email": clean_email,
+                "phone": user.get("phone") or "+91 98220 00000",
+                "assigned_area": "Central Ward",
+                "target_collections_count": 15,
+                "target_collection_amount": 30000.0,
+                "current_latitude": 21.1458,
+                "current_longitude": 79.0882,
+                "is_active": True,
+                "created_at": now_str
+            }
+            await db.officers.insert_one(officer_doc)
+            officer = officer_doc
+        elif not officer.get("user_id"):
+            await db.officers.update_one({"_id": officer["_id"]}, {"$set": {"user_id": user_id_str}})
+        
+        officer_id = officer.get("officer_id")
 
     access_token = create_access_token(
         data={"sub": user["email"], "role": user["role"], "user_id": str(user["_id"])}
@@ -186,12 +258,18 @@ async def get_me(
 ):
     officer_id = None
     if current_user.get("role") == "field_officer":
-        officer = await db.officers.find_one({"user_id": current_user["_id"]})
+        user_id_str = str(current_user["_id"])
+        officer = await db.officers.find_one({
+            "$or": [
+                {"user_id": user_id_str},
+                {"email": current_user.get("email")}
+            ]
+        })
         if officer:
             officer_id = officer.get("officer_id")
 
     return UserResponse(
-        id=current_user["_id"],
+        id=str(current_user["_id"]),
         email=current_user["email"],
         full_name=current_user.get("full_name", ""),
         role=current_user.get("role", "field_officer"),

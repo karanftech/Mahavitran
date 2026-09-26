@@ -23,10 +23,17 @@ class CustomerService:
             query["status"] = {"$ne": "paid"}
 
         if officer_id:
-            query["$or"] = [
-                {"assigned_officer_id": officer_id},
-                {"uploaded_by_officer_id": officer_id}
-            ]
+            assigned_count = await db.customers.count_documents({
+                "$or": [
+                    {"assigned_officer_id": officer_id},
+                    {"uploaded_by_officer_id": officer_id}
+                ]
+            })
+            if assigned_count > 0:
+                query["$or"] = [
+                    {"assigned_officer_id": officer_id},
+                    {"uploaded_by_officer_id": officer_id}
+                ]
 
         # Fetch candidate customers
         customers = await db.customers.find(query).to_list(1000)

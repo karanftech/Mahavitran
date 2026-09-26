@@ -21,7 +21,8 @@ export default function LoginPage() {
 
     try {
       await authService.login(email, password);
-      router.push('/dashboard');
+      // Ensure cookies and localstorage are fully evaluated by doing top-level navigation
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.data?.detail) {
@@ -29,11 +30,17 @@ export default function LoginPage() {
       } else if (err.response?.status === 401) {
         setError('Invalid credentials. Please check your official email and password.');
       } else if (!err.response) {
-        setError('Unable to connect to backend server. Please verify backend service is running.');
+        setError('Unable to connect to backend server. Please verify backend service is running on port 8000.');
       } else {
         setError('Login failed. Please check credentials or database server.');
       }
     }
+  };
+
+  const handleQuickLogin = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('officer123');
+    setError(null);
   };
 
   return (
@@ -42,6 +49,32 @@ export default function LoginPage() {
         <div className="text-center space-y-1">
           <h2 className="text-2xl font-extrabold text-slate-900">Login</h2>
           <p className="text-xs text-slate-500 font-medium">Enter your credentials to access the Field Officer portal</p>
+        </div>
+
+        {/* Quick Demo Access Card */}
+        <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3 text-xs text-slate-700 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-blue-900">Demo Accounts (Click to Fill):</span>
+            <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-mono">pwd: officer123</span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('officer1@electricity.gov.in')}
+              className="text-left font-mono text-xs text-blue-700 hover:text-blue-900 hover:underline bg-white px-2.5 py-1.5 rounded border border-blue-200 flex items-center justify-between"
+            >
+              <span>officer1@electricity.gov.in</span>
+              <span className="text-[10px] text-slate-500 font-sans">Officer 1</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('officer.nagpur@maharashtra.gov.in')}
+              className="text-left font-mono text-xs text-blue-700 hover:text-blue-900 hover:underline bg-white px-2.5 py-1.5 rounded border border-blue-200 flex items-center justify-between"
+            >
+              <span>officer.nagpur@maharashtra.gov.in</span>
+              <span className="text-[10px] text-emerald-600 font-sans font-semibold">89 Customers</span>
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -60,7 +93,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="officer@electricity.gov.in"
+                placeholder="officer1@electricity.gov.in"
                 className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={isLoading}
