@@ -1,14 +1,6 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname;
-    // Handle VS Code devtunnels (e.g. *-3000.inc1.devtunnels.ms -> *-8000.inc1.devtunnels.ms)
-    if (hostname.includes('.devtunnels.ms')) {
-      const backendHostname = hostname.replace(/-\d+(\.[^.]+\.devtunnels\.ms)/, '-8000$1');
-      return `https://${backendHostname}`;
-    }
-  }
   let url = process.env.NEXT_PUBLIC_API_URL;
   if (url) {
     url = url.trim();
