@@ -4,6 +4,8 @@ from typing import Optional, Any, Dict
 import jwt
 from app.config import settings
 
+from fastapi.concurrency import run_in_threadpool
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         pw_bytes = plain_password.encode('utf-8')[:72]
@@ -12,10 +14,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    return await run_in_threadpool(verify_password, plain_password, hashed_password)
+
 def get_password_hash(password: str) -> str:
     pw_bytes = password.encode('utf-8')[:72]
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pw_bytes, salt).decode('utf-8')
+
+async def get_password_hash_async(password: str) -> str:
+    return await run_in_threadpool(get_password_hash, password)
+
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

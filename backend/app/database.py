@@ -10,14 +10,17 @@ class Database:
 
 db_instance = Database()
 
+import asyncio
+
 async def connect_to_mongo():
     logger.info(f"Connecting to MongoDB at {settings.MONGODB_URI}...")
     db_instance.client = AsyncIOMotorClient(settings.MONGODB_URI)
     db_instance.db = db_instance.client[settings.DATABASE_NAME]
     logger.info(f"Connected to database: {settings.DATABASE_NAME}")
     
-    # Initialize indexes
-    await init_db_indexes()
+    # Initialize indexes in background so startup remains instant
+    asyncio.create_task(init_db_indexes())
+
 
 async def close_mongo_connection():
     if db_instance.client:

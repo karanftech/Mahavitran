@@ -4,7 +4,7 @@ from datetime import datetime
 
 from app.database import get_database
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
-from app.utils.security import verify_password, get_password_hash, create_access_token
+from app.utils.security import verify_password, get_password_hash, verify_password_async, get_password_hash_async, create_access_token
 from app.utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -27,15 +27,17 @@ async def register_field_officer(
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
     # 2. Create User Account Document
+    pwd_hash = await get_password_hash_async(request.password)
     user_doc = {
         "email": clean_email,
-        "password_hash": get_password_hash(request.password),
+        "password_hash": pwd_hash,
         "full_name": request.full_name,
         "role": "field_officer",
         "phone": request.phone or "",
         "is_active": True,
         "created_at": now_str
     }
+
     user_res = await db.users.insert_one(user_doc)
     user_id_str = str(user_res.inserted_id)
 
@@ -110,7 +112,7 @@ async def login(
     # Auto-seed default officer account if attempting login with standard demo emails
     if not user and clean_email in ["officer@electricity.gov.in", "officer1@electricity.gov.in", "officer@mahavitaran.in"]:
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        pwd_hash = get_password_hash(request.password if request.password else "officer123")
+        pwd_hash = await get_password_hash_async(request.password if request.password else "officer123")
         user_doc = {
             "email": clean_email,
             "password_hash": pwd_hash,
@@ -140,11 +142,19 @@ async def login(
         await db.officers.insert_one(officer_doc)
         user = await db.users.find_one({"_id": user_res.inserted_id})
 
-    if not user or not verify_password(request.password, user.get("password_hash", "")):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
+
+    is_valid_pwd = await verify_password_async(request.password, user.get("password_hash", ""))
+    if not is_valid_pwd:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+
 
     if not user.get("is_active", True):
         raise HTTPException(
