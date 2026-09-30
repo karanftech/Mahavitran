@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreditCard, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { CreditCard, CheckCircle2, AlertCircle, RefreshCw, Clock, AlertTriangle, X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { Customer, PaymentRecord } from '@/types';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, formatDate, getOverdueDays } from '@/utils/formatters';
 import { paymentService } from '@/services/paymentService';
 import { offlineService } from '@/services/offlineService';
 import { useOffline } from '@/hooks/useOffline';
@@ -17,6 +17,8 @@ interface PaymentModalProps {
   onSuccess: (paymentRecord: PaymentRecord) => void;
 }
 
+export type PaymentMethodType = 'cash' | 'upi_online' | 'td' | 'pd' | 'bur' | 'dis';
+
 export default function PaymentModal({
   isOpen,
   customer,
@@ -27,9 +29,10 @@ export default function PaymentModal({
   const { isOnline, refreshQueueCount } = useOffline();
 
   const [collectedAmount, setCollectedAmount] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi_online' | 'cheque' | 'other'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
   const [remarks, setRemarks] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Pre-fill collected amount with customer's pending amount by default
@@ -38,27 +41,49 @@ export default function PaymentModal({
       setCollectedAmount(customer.pending_amount.toString());
       setError(null);
       setRemarks('');
+      setIsConfirmOpen(false);
     }
   }, [customer, isOpen]);
 
   if (!customer) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const overdueDays = getOverdueDays(customer.due_date);
+
+  const paymentMethodsList = [
+    { key: 'cash' as const, label: 'CASH', desc: 'Cash Payment' },
+    { key: 'upi_online' as const, label: 'UPI/ONLINE', desc: 'Online / UPI' },
+    { key: 'td' as const, label: 'TD', desc: 'Temp Disconnected' },
+    { key: 'pd' as const, label: 'PD', desc: 'Perm Disconnected' },
+    { key: 'bur' as const, label: 'BUR', desc: 'Burnt Meter' },
+    { key: 'dis' as const, label: 'DIS', desc: 'Disconnected' },
+  ];
+
+  const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     const amt = parseFloat(collectedAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setError('Please enter a valid collection amount greater than 0.');
+    const isStatusMode = ['td', 'pd', 'bur', 'dis'].includes(paymentMethod);
+
+    if (isNaN(amt) || (isStatusMode ? amt < 0 : amt <= 0)) {
+      setError(isStatusMode ? 'Please enter a valid amount (>= 0).' : 'Please enter a valid collection amount greater than 0.');
       return;
     }
 
     if (amt > customer.pending_amount) {
-      setError(`Collected amount (\u20b9${amt}) cannot exceed pending amount (\u20b9${customer.pending_amount}).`);
+      setError(`Collected amount (₹${amt}) cannot exceed pending amount (₹${customer.pending_amount}).`);
       return;
     }
 
+    // Open confirmation popup
+    setIsConfirmOpen(true);
+  };
+
+  const executeCollection = async () => {
+    setError(null);
     setIsSubmitting(true);
+
+    const amt = parseFloat(collectedAmount) || 0;
 
     // Map UI payment method values to backend-accepted values
     const backendPaymentMethod: string =
@@ -68,7 +93,8 @@ export default function PaymentModal({
       customer_id: customer.customer_id,
       meter_id: customer.meters?.[0]?.meter_id,
       amount: amt,
-      payment_method: backendPaymentMethod,
+      payment_method: backendPaymentMethod as any,
+      disconnection_status: ['td', 'pd', 'bur', 'dis'].includes(paymentMethod) ? paymentMethod.toUpperCase() : undefined,
       remarks: remarks.trim() || undefined,
       collection_latitude: officerCoords?.latitude,
       collection_longitude: officerCoords?.longitude,
@@ -91,7 +117,8 @@ export default function PaymentModal({
           officer_id: customer.assigned_officer_id || 'OFF-1001',
           officer_name: 'Field Officer (Offline Queue)',
           amount: amt,
-          payment_method: paymentMethod === 'upi_online' ? 'UPI/ONLINE' : paymentMethod.toUpperCase(),
+          payment_method: paymentMethod.toUpperCase(),
+          disconnection_status: payload.disconnection_status,
           remarks: remarks || 'Collected in offline mode',
           previous_pending_amount: customer.pending_amount,
           remaining_pending_amount: Math.max(0, customer.pending_amount - amt),
@@ -100,46 +127,66 @@ export default function PaymentModal({
         };
 
         setIsSubmitting(false);
+        setIsConfirmOpen(false);
         onSuccess(offlineRecord);
         return;
       }
 
       // Online collection via FastAPI backend — send backend-mapped method
-      const result = await paymentService.collectPayment({ ...payload, payment_method: backendPaymentMethod });
+      const result = await paymentService.collectPayment(payload);
 
       setIsSubmitting(false);
+      setIsConfirmOpen(false);
       onSuccess(result);
     } catch (err: any) {
       setIsSubmitting(false);
+      setIsConfirmOpen(false);
       const msg = err.response?.data?.detail || err.message || 'Failed to process payment collection.';
       setError(msg);
     }
   };
 
-  const paymentMethodsList = [
-    { key: 'cash', label: 'CASH' },
-    { key: 'upi_online', label: 'UPI/ONLINE' },
-    { key: 'cheque', label: 'CHEQUE' },
-    { key: 'other', label: 'OTHER' },
-  ] as const;
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Collect Electricity Bill">
-      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <form onSubmit={handlePreSubmit} className="space-y-4 text-xs">
         {/* Customer Summary Banner */}
-        <div className="bg-slate-50 p-3 rounded-md border border-slate-200 space-y-1">
+        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
           <div className="flex justify-between items-start">
             <div>
               <p className="font-bold text-slate-900 text-sm">{customer.name}</p>
-              <p className="text-slate-500">
+              <p className="text-slate-500 text-[11px]">
                 Customer ID: <span className="text-slate-800 font-semibold">{customer.customer_id}</span>
               </p>
             </div>
-            <span className="text-amber-700 font-bold text-base">{formatCurrency(customer.pending_amount)}</span>
+            <div className="text-right">
+              <span className="text-amber-700 font-extrabold text-base block">{formatCurrency(customer.pending_amount)}</span>
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">Pending Dues</span>
+            </div>
           </div>
-          <p className="text-slate-500">
-            Meter #: <span className="text-slate-800 font-semibold">{customer.meter_number}</span>
-          </p>
+
+          <div className="flex items-center justify-between text-slate-600 text-[11px] pt-1 border-t border-slate-200">
+            <p>
+              Meter #: <span className="text-slate-900 font-bold font-mono">{customer.meter_number}</span>
+            </p>
+            {customer.dtc_code && (
+              <p>
+                DTC: <span className="text-blue-700 font-bold font-mono">{customer.dtc_code}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Overdue Days Paragraph Display */}
+          <div className={`p-2 rounded-md border flex items-center justify-between text-xs ${
+            overdueDays > 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-medium">Due Date: <b>{formatDate(customer.due_date)}</b></span>
+            </div>
+            <span className="font-black text-[11px] uppercase tracking-wide">
+              {overdueDays > 0 ? `⚠️ ${overdueDays} Days After Due Date` : 'Within Due Period'}
+            </span>
+          </div>
         </div>
 
         {error && (
@@ -151,7 +198,12 @@ export default function PaymentModal({
 
         {/* Amount Collected Input */}
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">Amount Collected (₹) *</label>
+          <label className="font-semibold text-slate-700 block mb-1">
+            Amount Collected (₹) *
+            {['td', 'pd', 'bur', 'dis'].includes(paymentMethod) && (
+              <span className="text-slate-400 font-normal ml-1">(Enter 0 if recording status change only)</span>
+            )}
+          </label>
           <input
             type="number"
             step="0.01"
@@ -163,35 +215,49 @@ export default function PaymentModal({
           />
         </div>
 
-        {/* Payment Method Selector */}
+        {/* Action / Payment Mode: CASH, UPI, TD, PD, BUR, DIS */}
         <div>
-          <label className="font-semibold text-slate-700 block mb-1.5">Payment Method *</label>
-          <div className="grid grid-cols-4 gap-2">
-            {paymentMethodsList.map((method) => (
-              <button
-                key={method.key}
-                type="button"
-                onClick={() => setPaymentMethod(method.key)}
-                className={`py-2 px-1 rounded-md font-extrabold text-[11px] uppercase transition-colors border cursor-pointer ${
-                  paymentMethod === method.key
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                {method.label}
-              </button>
-            ))}
+          <label className="font-semibold text-slate-700 block mb-1.5">Payment / Meter Action Mode *</label>
+          <div className="grid grid-cols-3 gap-2">
+            {paymentMethodsList.map((method) => {
+              const isSelected = paymentMethod === method.key;
+              const isStatus = ['td', 'pd', 'bur', 'dis'].includes(method.key);
+              return (
+                <button
+                  key={method.key}
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod(method.key);
+                    if (isStatus && !collectedAmount) {
+                      setCollectedAmount('0');
+                    }
+                  }}
+                  className={`py-2 px-2 rounded-lg font-bold text-left transition-all border cursor-pointer ${
+                    isSelected
+                      ? isStatus
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-[11px] font-black uppercase leading-tight">{method.label}</p>
+                  <p className={`text-[9px] font-medium leading-none mt-0.5 truncate ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                    {method.desc}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Remarks Input */}
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">Remarks / Notes</label>
+          <label className="font-semibold text-slate-700 block mb-1">Remarks / Officer Notes</label>
           <input
             type="text"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Optional collection note"
+            placeholder="Optional collection note or meter action observation"
             className="w-full bg-white border border-slate-300 text-slate-900 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -200,21 +266,98 @@ export default function PaymentModal({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full mt-2 py-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          className="w-full mt-2 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
         >
-          {isSubmitting ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Processing Collection...</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Confirm & Generate Receipt</span>
-            </>
-          )}
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Proceed & Confirm Collection</span>
         </button>
       </form>
+
+      {/* Confirmation Popup Modal */}
+      {isConfirmOpen && (
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4 border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="font-extrabold text-sm text-slate-900">Confirm Payment Collection</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-full cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Are you sure you want to collect and confirm this payment for the consumer below?
+            </p>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Consumer:</span>
+                <span className="font-bold text-slate-900">{customer.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Customer ID:</span>
+                <span className="font-mono font-semibold text-slate-800">{customer.customer_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Meter Number:</span>
+                <span className="font-mono font-semibold text-slate-800">{customer.meter_number}</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 pt-2">
+                <span className="text-slate-500 font-medium">Collected Amount:</span>
+                <span className="font-black text-sm text-emerald-700">
+                  {formatCurrency(parseFloat(collectedAmount) || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Mode / Status:</span>
+                <span className="font-extrabold text-blue-700 uppercase bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {paymentMethod.toUpperCase()}
+                </span>
+              </div>
+              {overdueDays > 0 && (
+                <div className="flex justify-between text-red-600 text-[11px] font-bold">
+                  <span>Overdue:</span>
+                  <span>{overdueDays} Days Past Due</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancel / Edit
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={executeCollection}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Yes, Confirm Collection</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

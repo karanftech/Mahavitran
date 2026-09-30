@@ -73,9 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       const authenticated = readAuthFromStorage();
       setIsAuthenticated(authenticated);
       if (!authenticated && !AUTH_PAGES.includes(pathname)) {
-        router.replace('/login');
-      } else if (authenticated && AUTH_PAGES.includes(pathname)) {
-        router.replace('/dashboard');
+        window.location.href = '/login';
       }
     };
     window.addEventListener('auth-change', handleAuthChange);

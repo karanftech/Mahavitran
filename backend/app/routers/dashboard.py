@@ -116,6 +116,47 @@ async def get_officer_dashboard(
             officer_id=officer_id
         )
 
+        # Aggregate disconnection status categories (TD, PD, BUR, DIS)
+        disconn_match = dict(cus_filter)
+        disconn_match["$or"] = [
+            {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
+            {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
+        ]
+        if officer_id:
+            disconn_match = {
+                "$and": [
+                    {"$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]},
+                    {"$or": [
+                        {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
+                        {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
+                    ]}
+                ]
+            }
+
+        disconn_agg = await db.customers.aggregate([
+            {"$match": disconn_match},
+            {"$group": {
+                "_id": {
+                    "$toUpper": {
+                        "$ifNull": ["$disconnection_status", "$status"]
+                    }
+                },
+                "total_amount": {"$sum": "$pending_amount"},
+                "count": {"$sum": 1}
+            }}
+        ]).to_list(10)
+
+        status_map = {item["_id"]: item for item in disconn_agg if item.get("_id")}
+
+        def get_stat(code: str):
+            item = status_map.get(code.upper(), {})
+            return int(item.get("count", 0)), round(safe_float(item.get("total_amount"), 0.0), 2)
+
+        td_cnt, td_amt = get_stat("TD")
+        pd_cnt, pd_amt = get_stat("PD")
+        bur_cnt, bur_amt = get_stat("BUR")
+        dis_cnt, dis_amt = get_stat("DIS")
+
         return OfficerDashboardMetrics(
             total_assigned_customers=int(total_assigned),
             total_pending_amount=round(total_pending_amt, 2),
@@ -125,6 +166,14 @@ async def get_officer_dashboard(
             todays_collected_amount=round(todays_collected_amt, 2),
             remaining_collections_count=remaining_count,
             remaining_collections_amount=round(remaining_amt, 2),
+            td_customers_count=td_cnt,
+            td_pending_amount=td_amt,
+            pd_customers_count=pd_cnt,
+            pd_pending_amount=pd_amt,
+            bur_customers_count=bur_cnt,
+            bur_pending_amount=bur_amt,
+            dis_customers_count=dis_cnt,
+            dis_pending_amount=dis_amt,
             nearby_pending_customers=nearby_customers
         )
     except Exception as err:
@@ -138,6 +187,14 @@ async def get_officer_dashboard(
             todays_collected_amount=0.0,
             remaining_collections_count=0,
             remaining_collections_amount=0.0,
+            td_customers_count=0,
+            td_pending_amount=0.0,
+            pd_customers_count=0,
+            pd_pending_amount=0.0,
+            bur_customers_count=0,
+            bur_pending_amount=0.0,
+            dis_customers_count=0,
+            dis_pending_amount=0.0,
             nearby_pending_customers=[]
         )
 

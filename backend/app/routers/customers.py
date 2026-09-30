@@ -106,6 +106,7 @@ async def list_customers(
     area: Optional[str] = Query(None),
     dtc_code: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    disconnection_status: Optional[str] = Query(None),
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
     assigned_officer_id: Optional[str] = Query(None),
@@ -149,6 +150,15 @@ async def list_customers(
 
     if status:
         query["status"] = status
+
+    if disconnection_status and disconnection_status.lower() != 'all':
+        ds = disconnection_status.upper()
+        query["$or"] = [
+            {"disconnection_status": ds},
+            {"disconnection_status": ds.lower()},
+            {"status": ds},
+            {"status": ds.lower()}
+        ]
 
     if min_amount is not None or max_amount is not None:
         amt_query = {}
@@ -237,6 +247,7 @@ async def list_customers(
                 latitude=float(cus.get("latitude", 0.0)),
                 longitude=float(cus.get("longitude", 0.0)),
                 dtc_code=cus.get("dtc_code"),
+                disconnection_status=cus.get("disconnection_status"),
                 pending_amount=float(cus.get("pending_amount", 0.0)),
                 due_date=cus.get("due_date"),
                 status=cus.get("status", "pending"),
@@ -339,6 +350,7 @@ async def create_customer(
         latitude=request.latitude,
         longitude=request.longitude,
         dtc_code=dtc_code,
+        disconnection_status=customer_doc.get("disconnection_status"),
         pending_amount=customer_doc["pending_amount"],
         due_date=customer_doc["due_date"],
         status=customer_doc["status"],
@@ -421,6 +433,7 @@ async def get_customer(
         latitude=float(cus.get("latitude", 0.0)),
         longitude=float(cus.get("longitude", 0.0)),
         dtc_code=cus.get("dtc_code"),
+        disconnection_status=cus.get("disconnection_status"),
         pending_amount=float(cus.get("pending_amount", 0.0)),
         due_date=cus.get("due_date"),
         status=cus.get("status", "pending"),

@@ -114,10 +114,26 @@ export const routeService = {
     origin: Coordinates,
     customers: Customer[]
   ): Promise<MultiRouteCalculationResult> {
+    // Strictly filter out collected payment meters — only route pending meters
+    const pendingCustomers = customers.filter(
+      (c) => c.status !== 'paid' && (c.pending_amount === undefined || c.pending_amount > 0)
+    );
+
+    if (pendingCustomers.length === 0) {
+      return {
+        total_distance_meters: 0,
+        total_distance_text: '0 m',
+        total_duration_seconds: 0,
+        total_duration_text: '0 min',
+        coordinates_path: [],
+        stops: [],
+      };
+    }
+
     try {
       const response = await api.post<MultiRouteCalculationResult>('/api/routes/calculate-multi', {
         origin,
-        customers: customers.map((c) => ({
+        customers: pendingCustomers.map((c) => ({
           customer_id: c.customer_id,
           name: c.name,
           meter_number: c.meter_number,
@@ -131,7 +147,7 @@ export const routeService = {
       return response.data;
     } catch (err) {
       console.warn('Backend calculate-multi endpoint offline, performing client-side TSP optimization:', err);
-      return this.calculateClientMultiRoute(origin, customers);
+      return this.calculateClientMultiRoute(origin, pendingCustomers);
     }
   },
 

@@ -29,6 +29,7 @@ class CustomerCreate(BaseModel):
     due_date: Optional[str] = None
     status: Optional[str] = "pending"
     priority: Optional[str] = "normal"
+    disconnection_status: Optional[str] = None
     assigned_officer_id: Optional[str] = None
     uploaded_by_officer_id: Optional[str] = None
 
@@ -41,6 +42,7 @@ class CustomerUpdate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     dtc_code: Optional[str] = None
+    disconnection_status: Optional[str] = None
     assigned_officer_id: Optional[str] = None
     status: Optional[str] = None
 
@@ -56,6 +58,7 @@ class CustomerResponse(BaseModel):
     latitude: float
     longitude: float
     dtc_code: Optional[str] = None
+    disconnection_status: Optional[str] = None
     pending_amount: float = 0.0
     due_date: Optional[str] = None
     status: str = "pending"  # pending, overdue, paid, partially_paid

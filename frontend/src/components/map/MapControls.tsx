@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Crosshair, Layers, Maximize2, Eye, Plus, Minus, Check, Menu, X, Volume2, VolumeX } from 'lucide-react';
+import { Crosshair, Layers, Maximize2, Eye, Plus, Minus, Check, Menu, X, Volume2, VolumeX, Compass, Box } from 'lucide-react';
 import { MapLayerType } from '@/types';
 
 interface MapControlsProps {
@@ -24,11 +24,15 @@ interface MapControlsProps {
 export default function MapControls({
   currentLayer,
   isFollowing,
+  is3D,
+  officerHeading,
   isMuted,
   onToggleMute,
   onToggleFollow,
   onSelectLayer,
   onFitBounds,
+  onResetNorth,
+  onToggle3D,
   onOpenStreetView,
   onZoomIn,
   onZoomOut,
@@ -132,6 +136,45 @@ export default function MapControls({
         </button>
       ),
     },
+    ...(onResetNorth
+      ? [
+          {
+            id: 'compass',
+            node: (
+              <button
+                onClick={onResetNorth}
+                className="w-10 h-10 rounded-full bg-white/95 text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer group"
+                title={`Reset to True North (Current: ${Math.round(officerHeading || 0)}°)`}
+              >
+                <Compass
+                  className="w-5 h-5 text-red-500 transition-transform duration-300"
+                  style={{ transform: `rotate(${-(officerHeading || 0)}deg)` }}
+                />
+              </button>
+            ),
+          },
+        ]
+      : []),
+    ...(onToggle3D
+      ? [
+          {
+            id: 'toggle3D',
+            node: (
+              <button
+                onClick={onToggle3D}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 cursor-pointer shadow-lg border text-xs font-black ${
+                  is3D
+                    ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-400/50'
+                    : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+                }`}
+                title={is3D ? 'Switch to 2D View' : 'Switch to 3D Perspective Tilt'}
+              >
+                {is3D ? '2D' : '3D'}
+              </button>
+            ),
+          },
+        ]
+      : []),
     ...(onToggleMute
       ? [
           {

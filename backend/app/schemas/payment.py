@@ -5,8 +5,9 @@ class PaymentCollectRequest(BaseModel):
     bill_id: Optional[str] = None
     customer_id: str
     meter_id: Optional[str] = None
-    amount: float = Field(..., gt=0, description="Amount collected must be greater than zero")
-    payment_method: str = Field(..., description="cash, upi, online, cheque, or other")
+    amount: float = Field(0.0, ge=0, description="Amount collected (can be 0 for status update / disconnection)")
+    payment_method: str = Field(..., description="cash, upi, online, td, pd, bur, dis, or other")
+    disconnection_status: Optional[str] = None
     transaction_reference: Optional[str] = None
     remarks: Optional[str] = None
     collection_latitude: Optional[float] = None
@@ -25,6 +26,7 @@ class PaymentResponse(BaseModel):
     officer_name: Optional[str] = None
     amount: float
     payment_method: str
+    disconnection_status: Optional[str] = None
     transaction_reference: Optional[str] = None
     remarks: Optional[str] = None
     collection_latitude: Optional[float] = None

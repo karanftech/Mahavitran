@@ -52,6 +52,10 @@ class PaymentService:
         officer_name = officer.get("full_name", "Field Officer")
         officer_id = officer.get("officer_id", str(officer.get("_id")))
 
+        disconn_status = request.disconnection_status
+        if not disconn_status and request.payment_method.lower() in ["td", "pd", "bur", "dis"]:
+            disconn_status = request.payment_method.upper()
+
         payment_doc = {
             "payment_id": payment_id,
             "receipt_number": receipt_number,
@@ -64,6 +68,7 @@ class PaymentService:
             "officer_name": officer_name,
             "amount": collected_amount,
             "payment_method": request.payment_method.lower(),
+            "disconnection_status": disconn_status,
             "transaction_reference": request.transaction_reference,
             "remarks": request.remarks,
             "collection_latitude": request.collection_latitude,
@@ -77,15 +82,17 @@ class PaymentService:
         await db.payments.insert_one(payment_doc)
 
         # 4. Update Customer aggregated balance & status
+        customer_update_fields = {
+            "pending_amount": max(0.0, new_pending),
+            "status": new_status,
+            "updated_at": now_str
+        }
+        if disconn_status:
+            customer_update_fields["disconnection_status"] = disconn_status
+
         await db.customers.update_one(
             {"customer_id": request.customer_id},
-            {
-                "$set": {
-                    "pending_amount": max(0.0, new_pending),
-                    "status": new_status,
-                    "updated_at": now_str
-                }
-            }
+            {"$set": customer_update_fields}
         )
 
         # 5. Record Audit Log
@@ -111,6 +118,7 @@ class PaymentService:
             officer_name=officer_name,
             amount=collected_amount,
             payment_method=request.payment_method,
+            disconnection_status=disconn_status,
             transaction_reference=request.transaction_reference,
             remarks=request.remarks,
             collection_latitude=request.collection_latitude,

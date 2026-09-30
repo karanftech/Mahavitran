@@ -100,9 +100,17 @@ export function matchCustomerFilters(
     if (customer.dtc_code !== filters.dtcCode) return false;
   }
 
-  // 2. Overdue Period Filter
+  // 2. Overdue Period Filter (Days overdue)
   if (filters.overduePeriod && filters.overduePeriod !== 'all') {
     const days = getOverdueDays(customer.due_date);
+    if (filters.overduePeriod === 'days_over_35' && days <= 35) return false;
+    if (filters.overduePeriod === 'days_over_40' && days <= 40) return false;
+    if (filters.overduePeriod === 'days_over_45' && days <= 45) return false;
+    if (filters.overduePeriod === 'days_over_50' && days <= 50) return false;
+    if (filters.overduePeriod === 'days_over_55' && days <= 55) return false;
+    if (filters.overduePeriod === 'days_over_60' && days <= 60) return false;
+
+    // Legacy period filters
     if (filters.overduePeriod === 'less_15' && days >= 15) return false;
     if (filters.overduePeriod === '15_30' && (days < 15 || days > 30)) return false;
     if (filters.overduePeriod === 'over_30' && days <= 30) return false;
@@ -113,6 +121,13 @@ export function matchCustomerFilters(
   // 3. Outstanding Amount Filter
   if (filters.outstandingAmount && filters.outstandingAmount !== 'all') {
     const amt = customer.pending_amount || 0;
+    if (filters.outstandingAmount === 'amt_0_100' && (amt < 0 || amt > 100)) return false;
+    if (filters.outstandingAmount === 'amt_over_100' && amt <= 100) return false;
+    if (filters.outstandingAmount === 'amt_over_500' && amt <= 500) return false;
+    if (filters.outstandingAmount === 'amt_over_1000' && amt <= 1000) return false;
+    if (filters.outstandingAmount === 'amt_over_5000' && amt <= 5000) return false;
+
+    // Legacy amount filters
     if (filters.outstandingAmount === 'less_500' && amt >= 500) return false;
     if (filters.outstandingAmount === 'over_500' && amt <= 500) return false;
     if (filters.outstandingAmount === 'over_5000' && amt <= 5000) return false;

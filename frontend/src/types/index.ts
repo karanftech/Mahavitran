@@ -37,6 +37,7 @@ export interface Customer {
   dtc_code?: string;
   pending_amount: number;
   due_date?: string;
+  disconnection_status?: string;
   status: 'pending' | 'overdue' | 'paid' | 'partially_paid';
   priority?: 'normal' | 'high' | 'critical';
   assigned_officer_id?: string;
@@ -89,7 +90,8 @@ export interface PaymentCollectionPayload {
   customer_id: string;
   meter_id?: string;
   amount: number;
-  payment_method: 'cash' | 'upi' | 'online' | 'other' | 'upi_online' | 'cheque';
+  payment_method: 'cash' | 'upi' | 'online' | 'other' | 'upi_online' | 'cheque' | 'td' | 'pd' | 'bur' | 'dis';
+  disconnection_status?: string;
   transaction_reference?: string;
   remarks?: string;
   collection_latitude?: number;
@@ -109,6 +111,7 @@ export interface PaymentRecord {
   officer_name?: string;
   amount: number;
   payment_method: string;
+  disconnection_status?: string;
   transaction_reference?: string;
   remarks?: string;
   previous_pending_amount: number;
@@ -127,6 +130,7 @@ export interface DigitalReceipt {
   address: string;
   collected_amount: number;
   payment_method: string;
+  disconnection_status?: string;
   transaction_reference: string;
   field_officer_name: string;
   field_officer_id: string;
@@ -190,13 +194,42 @@ export interface OfficerDashboardMetrics {
   todays_collected_amount: number;
   remaining_collections_count: number;
   remaining_collections_amount: number;
+  td_customers_count?: number;
+  td_pending_amount?: number;
+  pd_customers_count?: number;
+  pd_pending_amount?: number;
+  bur_customers_count?: number;
+  bur_pending_amount?: number;
+  dis_customers_count?: number;
+  dis_pending_amount?: number;
   nearby_pending_customers: NearbyCustomer[];
 }
 
+export type OverduePeriodFilter =
+  | 'all'
+  | 'days_over_35'
+  | 'days_over_40'
+  | 'days_over_45'
+  | 'days_over_50'
+  | 'days_over_55'
+  | 'days_over_60'
+  | 'less_15'
+  | '15_30'
+  | 'over_30'
+  | 'over_60'
+  | 'over_120';
 
-
-export type OverduePeriodFilter = 'all' | 'less_15' | '15_30' | 'over_30' | 'over_60' | 'over_120';
-export type OutstandingAmountFilter = 'all' | 'less_500' | 'over_500' | 'over_5000' | 'over_10000';
+export type OutstandingAmountFilter =
+  | 'all'
+  | 'amt_0_100'
+  | 'amt_over_100'
+  | 'amt_over_500'
+  | 'amt_over_1000'
+  | 'amt_over_5000'
+  | 'less_500'
+  | 'over_500'
+  | 'over_5000'
+  | 'over_10000';
 
 export interface MapFilterState {
   status?: 'all' | 'pending' | 'overdue' | 'high_amount' | 'due_today' | 'due_week' | 'collected';

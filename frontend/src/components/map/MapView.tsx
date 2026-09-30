@@ -16,6 +16,7 @@ import NavigationPanel from '@/components/map/NavigationPanel';
 import StreetViewModal from '@/components/map/StreetViewModal';
 import { X, CheckCircle2 } from 'lucide-react';
 import { speakInstruction, stopSpeech } from '@/utils/speech';
+import { getOverdueDays } from '@/utils/formatters';
 
 interface MapViewProps {
   customers: Customer[];
@@ -164,7 +165,7 @@ export default function MapView({
   // State
   const [mapEngine, setMapEngine] = useState<'google' | 'leaflet' | 'canvas'>('google');
   const [mapError, setMapError] = useState<string | null>(null);
-  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('hybrid');
+  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('roadmap');
   const [isFollowingInternal, setIsFollowingInternal] = useState<boolean>(false);
   const [is3D, setIs3D] = useState<boolean>(false);
   const [mapHeading, setMapHeading] = useState<number>(officerHeading || 0);
@@ -212,11 +213,17 @@ export default function MapView({
     }
     lastOpenWindowFingerprintRef.current = fingerprint;
 
+    const overdueDays = getOverdueDays(customer.due_date);
+
     const contentHtml = `
-      <div style="padding: 2px 4px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 190px; max-width: 220px; box-sizing: border-box;">
+      <div style="padding: 2px 4px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 195px; max-width: 230px; box-sizing: border-box;">
         <div style="padding-right: 16px; margin-bottom: 2px;">
           <h4 style="margin: 0; font-weight: 800; font-size: 12px; color: #0f172a; line-height: 1.2;">${customer.name}</h4>
           <p style="margin: 2px 0 0; font-size: 10.5px; color: #64748b; font-weight: 600;">Meter: <span style="color: #0284c7; font-weight: 800; font-family: monospace;">${customer.meter_number}</span></p>
+        </div>
+
+        <div style="margin: 4px 0; padding: 3px 6px; background: ${overdueDays > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${overdueDays > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 5px; font-size: 10px; font-weight: 700; color: ${overdueDays > 0 ? '#b91c1c' : '#15803d'};">
+          ${overdueDays > 0 ? `⚠️ Overdue: <b>${overdueDays} days</b> after due date` : `Due Date: ${customer.due_date || 'N/A'}`}
         </div>
 
         <div style="margin: 4px 0 6px; padding: 4px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
@@ -307,8 +314,8 @@ export default function MapView({
       });
 
       leafletTileLayerRef.current = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: '© Esri World Imagery' }
+        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        { maxZoom: 19, attribution: '© Carto Voyager' }
       ).addTo(leafletMapRef.current);
 
       leafletMapRef.current.on('dragstart zoomstart', () => disableFollowMode());
@@ -340,7 +347,7 @@ export default function MapView({
     googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
       center: { lat: centerLat, lng: centerLng },
       zoom: 15,
-      mapTypeId: google.maps.MapTypeId.HYBRID,
+      mapTypeId: google.maps.MapTypeId.ROADMAP,
       mapId: 'MAHAVITARAN_3D_NAV_MAP',
       tiltInteractionEnabled: true,
       headingInteractionEnabled: true,
@@ -545,11 +552,12 @@ export default function MapView({
       }
     }
 
-    // 2. SINGLE LEG DIRECTIONS SERVICE (Only for single navigation or single pin preview)
+    // 2. SINGLE LEG DIRECTIONS SERVICE (Only for single navigation or single pin preview of pending meters)
     const isSingleNav = navState?.active && !multiRoute;
     const dest = isSingleNav ? navState.targetCustomer : (selectedCustomer && !multiRoute ? selectedCustomer : null);
+    const isDestCollected = dest && (dest.status === 'paid' || (dest.pending_amount !== undefined && dest.pending_amount <= 0));
 
-    if (!directionsServiceRef.current || !directionsRendererRef.current || !dest) {
+    if (!directionsServiceRef.current || !directionsRendererRef.current || !dest || isDestCollected) {
       if (directionsRendererRef.current) {
         directionsRendererRef.current.setMap(null);
       }
@@ -910,6 +918,30 @@ export default function MapView({
           currentStopIndex={activeStopIndex}
           onSelectStopIndex={onSelectStopIndex}
         />
+      )}
+
+      {/* Floating Compass Rose (Appears automatically when map is rotated via two-finger twist) */}
+      {Math.round(mapHeading || 0) !== 0 && (
+        <button
+          onClick={handleResetNorth}
+          className="absolute top-20 right-4 z-40 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full px-3 py-2 shadow-xl flex items-center gap-2 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 animate-in fade-in zoom-in-95 cursor-pointer"
+          title="Map is rotated. Tap to reset to True North"
+        >
+          <div
+            className="w-5 h-5 flex items-center justify-center transition-transform duration-200"
+            style={{ transform: `rotate(${-(mapHeading || 0)}deg)` }}
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5 drop-shadow-xs">
+              <polygon points="12,2 16,12 12,9" fill="#ef4444" />
+              <polygon points="12,2 8,12 12,9" fill="#dc2626" />
+              <polygon points="12,22 16,12 12,15" fill="#94a3b8" />
+              <polygon points="12,22 8,12 12,15" fill="#64748b" />
+            </svg>
+          </div>
+          <span className="text-[11px] font-black text-slate-700 font-mono">
+            {((Math.round(mapHeading || 0) % 360) + 360) % 360}° N
+          </span>
+        </button>
       )}
 
       {/* Floating Map Controls */}

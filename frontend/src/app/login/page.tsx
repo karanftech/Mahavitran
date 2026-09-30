@@ -21,7 +21,8 @@ export default function LoginPage() {
 
     try {
       await authService.login(email, password);
-      router.push('/dashboard');
+      // Clean browser redirect ensures the fresh cookie is sent immediately without App Router client transition lockup
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.data?.detail) {

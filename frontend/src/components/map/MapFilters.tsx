@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX, Check, Zap } from 'lucide-react';
+import { Search, Filter, Navigation, Loader2, Square, RotateCcw, Volume2, VolumeX, Check, Zap, X } from 'lucide-react';
 import { MapFilterState, Customer, OverduePeriodFilter, OutstandingAmountFilter, DTCCodeOption } from '@/types';
 import { customerService } from '@/services/customerService';
 
@@ -61,32 +61,43 @@ export default function MapFilters({
     return () => window.removeEventListener('customers-updated', handleCustomRefresh);
   }, []);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click or Escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsFilterDropdownOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFilterDropdownOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const overduePeriodOptions: { key: OverduePeriodFilter; label: string }[] = [
-    { key: 'all', label: 'All Days (Show All)' },
-    { key: 'less_15', label: '< 15 Days' },
-    { key: '15_30', label: '15 – 30 Days' },
-    { key: 'over_30', label: '> 30 Days Overdue' },
-    { key: 'over_60', label: '> 60 Days (Critical)' },
-    { key: 'over_120', label: '> 120 Days (Severe)' },
+    { key: 'all', label: 'All Days' },
+    { key: 'days_over_35', label: '> 35 Days Overdue' },
+    { key: 'days_over_40', label: '> 40 Days Overdue' },
+    { key: 'days_over_45', label: '> 45 Days Overdue' },
+    { key: 'days_over_50', label: '> 50 Days Overdue' },
+    { key: 'days_over_55', label: '> 55 Days Overdue' },
+    { key: 'days_over_60', label: '> 60 Days Overdue' },
   ];
 
   const outstandingAmountOptions: { key: OutstandingAmountFilter; label: string }[] = [
     { key: 'all', label: 'All Amounts' },
-    { key: 'less_500', label: '< ₹500' },
-    { key: 'over_500', label: '> ₹500' },
-    { key: 'over_5000', label: '> ₹5,000' },
-    { key: 'over_10000', label: '> ₹10,000 (High Value)' },
+    { key: 'amt_0_100', label: '₹0 – ₹100' },
+    { key: 'amt_over_100', label: '> ₹100' },
+    { key: 'amt_over_500', label: '> ₹500' },
+    { key: 'amt_over_1000', label: '> ₹1,000' },
+    { key: 'amt_over_5000', label: '> ₹5,000' },
   ];
 
   const isFilterActive =
@@ -121,6 +132,18 @@ export default function MapFilters({
           placeholder="Search customer, ID, meter #, address..."
           className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-400 font-medium focus:outline-none"
         />
+
+        {/* Cross (Clear) Search Button */}
+        {filters.searchQuery && (
+          <button
+            type="button"
+            onClick={() => onFilterChange({ ...filters, searchQuery: '' })}
+            className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors shrink-0"
+            title="Clear search (Cross option)"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* Right Action Icons Group */}
         <div className="flex items-center gap-2 shrink-0 pl-1 border-l border-slate-200">
@@ -207,11 +230,63 @@ export default function MapFilters({
         </div>
       </div>
 
+      {/* Active Filter Chips with Individual Cross (X) Dismiss */}
+      {isFilterActive && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
+          {filters.overduePeriod && filters.overduePeriod !== 'all' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100/90 text-blue-800 border border-blue-200 shadow-2xs">
+              <span>{overduePeriodOptions.find((o) => o.key === filters.overduePeriod)?.label || filters.overduePeriod}</span>
+              <button
+                type="button"
+                onClick={() => onFilterChange({ ...filters, overduePeriod: 'all' })}
+                className="hover:text-blue-950 cursor-pointer p-0.5"
+                title="Remove overdue filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {filters.outstandingAmount && filters.outstandingAmount !== 'all' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 shadow-2xs">
+              <span>{outstandingAmountOptions.find((o) => o.key === filters.outstandingAmount)?.label || filters.outstandingAmount}</span>
+              <button
+                type="button"
+                onClick={() => onFilterChange({ ...filters, outstandingAmount: 'all' })}
+                className="hover:text-emerald-950 cursor-pointer p-0.5"
+                title="Remove amount filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {filters.dtcCode && filters.dtcCode !== 'all' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100/90 text-amber-800 border border-amber-200 shadow-2xs">
+              <span>DTC: {filters.dtcCode}</span>
+              <button
+                type="button"
+                onClick={() => onFilterChange({ ...filters, dtcCode: 'all' })}
+                className="hover:text-amber-950 cursor-pointer p-0.5"
+                title="Remove DTC filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
       {/* Filter Options Dropdown Popup with Checkboxes */}
       {isFilterDropdownOpen && (
         <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
           
-          {/* Header & Reset */}
+          {/* Header, Reset & Close Cross Button */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-blue-600" />
@@ -219,16 +294,28 @@ export default function MapFilters({
                 Filter Options
               </span>
             </div>
-            {isFilterActive && (
+            <div className="flex items-center gap-2">
+              {isFilterActive && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset</span>
+                </button>
+              )}
+              {/* Top-Right Corner Close Cross (✕) Button */}
               <button
                 type="button"
-                onClick={handleResetFilters}
-                className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full cursor-pointer transition-colors"
+                onClick={() => setIsFilterDropdownOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                title="Close Filter Options (✕)"
+                aria-label="Close Filter Options"
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset Filters</span>
+                <X className="w-4 h-4 stroke-[2.5]" />
               </button>
-            )}
+            </div>
           </div>
 
           {/* Section 1: FILTER BY OVERDUE PERIOD */}

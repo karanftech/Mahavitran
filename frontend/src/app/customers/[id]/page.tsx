@@ -7,7 +7,7 @@ import { MapPin, Phone, Mail, Navigation, CreditCard, Clock, ArrowLeft, Zap, Shi
 import { Customer, PaymentRecord } from '@/types';
 import { customerService } from '@/services/customerService';
 import { paymentService } from '@/services/paymentService';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatCurrency, formatDate, getOverdueDays } from '@/utils/formatters';
 import StatusBadge from '@/components/ui/Badge';
 import PaymentModal from '@/components/payments/PaymentModal';
 import ReceiptView from '@/components/payments/ReceiptView';
@@ -123,6 +123,18 @@ export default function CustomerDetailPage() {
             <p className="text-xs text-amber-800 font-bold uppercase tracking-wider">Current Pending Electricity Bill</p>
             <p className="text-2xl sm:text-3xl font-bold text-amber-700">{formatCurrency(customer.pending_amount)}</p>
             <p className="text-xs text-slate-600 mt-0.5">Due Date: {formatDate(customer.due_date)}</p>
+            {(() => {
+              const days = getOverdueDays(customer.due_date);
+              return days > 0 ? (
+                <p className="text-xs font-bold text-red-600 mt-1 flex items-center gap-1">
+                  <span>⚠️ Overdue: {days} days after due date</span>
+                </p>
+              ) : (
+                <p className="text-xs font-semibold text-emerald-600 mt-1">
+                  Within due period
+                </p>
+              );
+            })()}
           </div>
 
           <button

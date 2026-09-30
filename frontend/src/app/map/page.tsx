@@ -86,6 +86,9 @@ function MapPageContent() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
   const [completedPayment, setCompletedPayment] = useState<PaymentRecord | null>(null);
 
+  // Temporary removal of collected meters from map
+  const [temporarilyRemovedCustomerIds, setTemporarilyRemovedCustomerIds] = useState<Set<string>>(new Set());
+
   // Load Customers from backend
   const loadCustomers = async () => {
     setIsLoadingCustomers(true);
@@ -122,19 +125,36 @@ function MapPageContent() {
     }
   }, [officerCoords, isNavigating, updateOfficerPosition]);
 
-  // Filter Customers for Map Display
+  // Filter Customers for Map Display (with temporary exclusion of collected meters)
   const filteredCustomers = useMemo(() => {
-    return allCustomers.filter((c) => matchCustomerFilters(c, filters));
-  }, [allCustomers, filters]);
+    return allCustomers
+      .filter((c) => !temporarilyRemovedCustomerIds.has(c.customer_id))
+      .filter((c) => {
+        // Exclude collected meters (status === 'paid' or pending_amount <= 0) unless user explicitly filters for 'collected'
+        const isCollected = c.status === 'paid' || (c.pending_amount !== undefined && c.pending_amount <= 0);
+        if (filters.status !== 'collected' && isCollected) return false;
+        return matchCustomerFilters(c, filters);
+      });
+  }, [allCustomers, filters, temporarilyRemovedCustomerIds]);
 
-  // Auto-calculate multi-stop route connecting all filtered customers by default
+  // Pending meters specifically for routing: strictly pending meters only, never collected
+  const pendingCustomersForRoute = useMemo(() => {
+    return filteredCustomers.filter(
+      (c) =>
+        c.status !== 'paid' &&
+        (c.pending_amount === undefined || c.pending_amount > 0) &&
+        !temporarilyRemovedCustomerIds.has(c.customer_id)
+    );
+  }, [filteredCustomers, temporarilyRemovedCustomerIds]);
+
+  // Auto-calculate multi-stop route connecting all pending meters only
   const lastMultiRouteOfficerCoordsRef = React.useRef<Coordinates | null>(null);
   const lastFilteredCustomerIdsRef = React.useRef<string>('');
 
   useEffect(() => {
-    if (filteredCustomers.length > 0) {
+    if (pendingCustomersForRoute.length > 0) {
       const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
-      const currentIdsKey = filteredCustomers.map((c) => c.customer_id).sort().join(',');
+      const currentIdsKey = pendingCustomersForRoute.map((c) => c.customer_id).sort().join(',');
       const filtersChanged = currentIdsKey !== lastFilteredCustomerIdsRef.current;
 
       // Avoid recalculating multi-route on tiny GPS updates (< 500m movement) unless customer filters changed
@@ -152,7 +172,7 @@ function MapPageContent() {
 
       lastFilteredCustomerIdsRef.current = currentIdsKey;
       lastMultiRouteOfficerCoordsRef.current = effectiveCoords;
-      routeService.calculateMultiRoute(effectiveCoords, filteredCustomers)
+      routeService.calculateMultiRoute(effectiveCoords, pendingCustomersForRoute)
         .then((res) => {
           setMultiRoute(res);
         })
@@ -163,15 +183,15 @@ function MapPageContent() {
       lastFilteredCustomerIdsRef.current = '';
       setMultiRoute(null);
     }
-  }, [filteredCustomers, officerCoords]);
+  }, [pendingCustomersForRoute, officerCoords]);
 
   // Count aggregates for filters
   const counts = useMemo(() => {
     return {
       all: allCustomers.length,
-      pending: allCustomers.filter((c) => c.status !== 'paid').length,
-      overdue: allCustomers.filter((c) => c.status === 'overdue' || c.priority === 'high' || c.priority === 'critical').length,
-      paid: allCustomers.filter((c) => c.status === 'paid').length,
+      pending: allCustomers.filter((c) => c.status !== 'paid' && (c.pending_amount || 0) > 0).length,
+      overdue: allCustomers.filter((c) => (c.status === 'overdue' || c.priority === 'high' || c.priority === 'critical') && (c.pending_amount || 0) > 0).length,
+      paid: allCustomers.filter((c) => c.status === 'paid' || (c.pending_amount !== undefined && c.pending_amount <= 0)).length,
     };
   }, [allCustomers]);
 
@@ -188,35 +208,39 @@ function MapPageContent() {
     return { distanceMeters: dist, durationSeconds: durSec };
   }, [selectedCustomer, officerCoords]);
 
-  // Navigate Single Customer — starts navigation to a specific customer
+  // Navigate Single Customer — starts navigation to a specific pending customer
   const handleStartSingleNavigation = (customer: Customer) => {
+    // If customer is already collected/paid, do not show route
+    if (customer.status === 'paid' || (customer.pending_amount !== undefined && customer.pending_amount <= 0)) {
+      return;
+    }
     if (isMultiNavigating) handleStopMultiNavigation();
     setSelectedCustomer(customer);
     const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
     startNavigation(customer, effectiveCoords);
   };
 
-  // Navigate All — starts multi-stop route navigation connecting all meters at once
+  // Navigate All — starts multi-stop route navigation connecting only pending meters
   const handleStartMultiNavigation = async () => {
-    if (filteredCustomers.length === 0) return;
+    if (pendingCustomersForRoute.length === 0) return;
     const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
     setIsCalculatingMultiRoute(true);
     try {
-      const res = await routeService.calculateMultiRoute(effectiveCoords, filteredCustomers);
+      const res = await routeService.calculateMultiRoute(effectiveCoords, pendingCustomersForRoute);
       setMultiRoute(res);
       setIsMultiNavigating(true);
       setCurrentStopIndex(0);
 
       if (res.stops && res.stops.length > 0) {
         const firstStopId = res.stops[0].customer_id;
-        const firstCust = allCustomers.find((c) => c.customer_id === firstStopId) || filteredCustomers[0];
+        const firstCust = allCustomers.find((c) => c.customer_id === firstStopId) || pendingCustomersForRoute[0];
         setSelectedCustomer(firstCust);
         startNavigation(firstCust, effectiveCoords);
       }
     } catch (err) {
       console.error('Failed to calculate multi-route:', err);
-      if (filteredCustomers[0]) {
-        startNavigation(filteredCustomers[0], effectiveCoords);
+      if (pendingCustomersForRoute[0]) {
+        startNavigation(pendingCustomersForRoute[0], effectiveCoords);
       }
     } finally {
       setIsCalculatingMultiRoute(false);
@@ -236,6 +260,10 @@ function MapPageContent() {
     const stop = multiRoute.stops[index];
     const found = allCustomers.find((c) => c.customer_id === stop.customer_id);
     if (found) {
+      // Do not navigate if stop is already collected
+      if (found.status === 'paid' || (found.pending_amount !== undefined && found.pending_amount <= 0)) {
+        return;
+      }
       setSelectedCustomer(found);
       if (officerCoords) startNavigation(found, officerCoords);
     }
@@ -246,8 +274,38 @@ function MapPageContent() {
     setIsPaymentModalOpen(false);
     setCompletedPayment(record);
 
+    // 1. Immediately remove collected meter from the map and route
+    setTemporarilyRemovedCustomerIds((prev) => {
+      const next = new Set(prev);
+      next.add(record.customer_id);
+      return next;
+    });
+
+    // 2. Immediately update state so allCustomers reflects paid status without delay
+    setAllCustomers((prev) =>
+      prev.map((c) => {
+        if (c.customer_id === record.customer_id) {
+          const rem = record.remaining_pending_amount ?? Math.max(0, c.pending_amount - record.amount);
+          return {
+            ...c,
+            pending_amount: rem,
+            status: rem <= 0 ? 'paid' : c.status,
+          };
+        }
+        return c;
+      })
+    );
+
+    // 3. Clear active navigation if currently navigating to this collected meter
+    if (selectedCustomer?.customer_id === record.customer_id) {
+      setSelectedCustomer(null);
+      stopNavigation();
+    }
+
+    // 4. Update multi-navigation: advance to next pending meter or stop
     if (isMultiNavigating && multiRoute) {
-      if (currentStopIndex < multiRoute.stops.length - 1) {
+      const remainingStops = multiRoute.stops.filter((s) => s.customer_id !== record.customer_id);
+      if (remainingStops.length > 0 && currentStopIndex < multiRoute.stops.length - 1) {
         handleSelectStopIndex(currentStopIndex + 1);
       } else {
         handleStopMultiNavigation();
@@ -256,7 +314,7 @@ function MapPageContent() {
       stopNavigation();
     }
 
-    // Clear cache and refresh customers to update marker colors instantly
+    // 5. Clear cache and refresh customers in the background
     customerService.clearCache();
     loadCustomers();
   };
@@ -372,6 +430,21 @@ function MapPageContent() {
           isMuted={isMuted}
           onToggleMute={handleToggleMute}
         />
+
+        {/* Temporary Removed Meters Indicator */}
+        {temporarilyRemovedCustomerIds.size > 0 && (
+          <div className="absolute bottom-4 left-4 z-20 bg-slate-900/90 text-white backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-slate-700 flex items-center gap-2 text-xs animate-in fade-in slide-in-from-bottom-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="font-semibold">{temporarilyRemovedCustomerIds.size} collected meter{temporarilyRemovedCustomerIds.size > 1 ? 's' : ''} removed from map</span>
+            <button
+              type="button"
+              onClick={() => setTemporarilyRemovedCustomerIds(new Set())}
+              className="text-[11px] font-bold text-sky-400 hover:text-sky-300 underline cursor-pointer ml-1"
+            >
+              Restore
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Payment Collection Modal */}

@@ -46,6 +46,8 @@ class CustomerImportService:
                 mapping['lang_long'] = idx
             elif any(k in h for k in ['dtc code', 'dtc_code', 'dtc no', 'dtc_no', 'dtc number', 'dtc id', 'dtc']):
                 mapping['dtc_code'] = idx
+            elif any(k in h for k in ['disconnection_status', 'meter_status', 'disconnection', 'status_code', 'category', 'action', 'status']):
+                mapping['disconnection_status'] = idx
             elif 'address' in h:
                 mapping['address'] = idx
             elif 'area' in h:
@@ -254,6 +256,14 @@ class CustomerImportService:
                 status = "overdue" if pending_amount > 3000 else ("pending" if pending_amount > 0 else "paid")
                 priority = "high" if pending_amount > 5000 else "normal"
 
+                # Parse disconnection status (TD, PD, BUR, DIS) if present
+                raw_disconn = get_val('disconnection_status', '').upper()
+                disconn_status = None
+                for cat in ['TD', 'PD', 'BUR', 'DIS']:
+                    if cat in raw_disconn:
+                        disconn_status = cat
+                        break
+
                 location = {
                     "type": "Point",
                     "coordinates": [lng, lat]
@@ -276,6 +286,7 @@ class CustomerImportService:
                     "pending_amount": pending_amount,
                     "due_date": default_due_date,
                     "status": status,
+                    "disconnection_status": disconn_status,
                     "priority": priority,
                     "assigned_officer_id": officer_id_to_assign,
                     "uploaded_by_officer_id": uploader_officer_id or officer_id_to_assign,

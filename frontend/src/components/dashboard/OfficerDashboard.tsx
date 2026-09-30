@@ -2,16 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, FileText, CheckCircle2, Target, Navigation, Clock, ChevronRight, Zap } from 'lucide-react';
-import { OfficerDashboardMetrics, NearbyCustomer } from '@/types';
+import { Users, DollarSign, FileText, CheckCircle2, Target, Navigation, Clock, ChevronRight, Zap, Upload, AlertTriangle, ShieldAlert, Flame, PowerOff } from 'lucide-react';
+import { OfficerDashboardMetrics, NearbyCustomer, Customer, PaymentRecord } from '@/types';
 import { formatCurrency, formatDistance, formatDuration } from '@/utils/formatters';
 import api from '@/services/api';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
 import BulkUploadModal from '@/components/customers/BulkUploadModal';
 import AssignedCustomersModal from '@/components/dashboard/AssignedCustomersModal';
-
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import StatusCustomersModal from '@/components/dashboard/StatusCustomersModal';
+import PaymentModal from '@/components/payments/PaymentModal';
+import ReceiptView from '@/components/payments/ReceiptView';
 
 export default function OfficerDashboard() {
   const { coords } = useGeolocation();
@@ -20,6 +21,9 @@ export default function OfficerDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
   const [isAssignedModalOpen, setIsAssignedModalOpen] = useState<boolean>(false);
+  const [statusModalType, setStatusModalType] = useState<'TD' | 'PD' | 'BUR' | 'DIS' | null>(null);
+  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
+  const [receiptRecord, setReceiptRecord] = useState<PaymentRecord | null>(null);
 
   // Memoize GPS coords to a rounded grid (~500m precision) to avoid refetching on tiny GPS jitter
   const coordKey = React.useMemo(() => {
@@ -110,6 +114,38 @@ export default function OfficerDashboard() {
         onClose={() => setIsAssignedModalOpen(false)}
       />
 
+      {/* Specific Status Category Customers List Modal (TD, PD, BUR, DIS) */}
+      <StatusCustomersModal
+        isOpen={!!statusModalType}
+        onClose={() => setStatusModalType(null)}
+        statusType={statusModalType}
+        onCollectPayment={(cust) => {
+          setPaymentCustomer(cust);
+        }}
+      />
+
+      {/* Collect Payment Modal if triggered from status list */}
+      <PaymentModal
+        isOpen={!!paymentCustomer}
+        customer={paymentCustomer}
+        officerCoords={coords}
+        onClose={() => setPaymentCustomer(null)}
+        onSuccess={(rec) => {
+          setPaymentCustomer(null);
+          setReceiptRecord(rec);
+          fetchDashboard();
+        }}
+      />
+
+      {/* Digital Receipt View if payment collected from status list */}
+      {receiptRecord && (
+        <ReceiptView
+          isOpen={!!receiptRecord}
+          onClose={() => setReceiptRecord(null)}
+          paymentRecord={receiptRecord}
+        />
+      )}
+
       {/* Header Greeting */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
         <div>
@@ -192,6 +228,143 @@ export default function OfficerDashboard() {
           <p className="text-2xl font-extrabold text-emerald-600">
             {metrics.number_of_completed_collections}
           </p>
+        </div>
+      </div>
+
+      {/* Meter & Disconnection Status Cards: TD, PD, BUR, DIS */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-blue-600" />
+            <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wide">
+              Meter Status & Disconnection Action Cards
+            </h3>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+            Click any card to open its specific consumer list
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: TD (Temporary Disconnected) */}
+          <button
+            type="button"
+            onClick={() => setStatusModalType('TD')}
+            className="bg-white border border-amber-200/90 hover:border-amber-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-500"
+            title="Click to view all Temporary Disconnected (TD) consumers"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-amber-600 text-amber-600 group-hover:text-white transition-colors flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 group-hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 transition-colors flex items-center gap-0.5">
+                View List <ChevronRight className="w-3 h-3 inline" />
+              </span>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 group-hover:text-amber-900 font-bold uppercase transition-colors">
+                TD (Temp Disconnected)
+              </p>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black text-slate-900 group-hover:text-amber-700 transition-colors">
+                  {metrics.td_customers_count || 0}
+                </span>
+                <span className="text-xs font-extrabold text-amber-600">
+                  {formatCurrency(metrics.td_pending_amount || 0)}
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Card 2: PD (Permanently Disconnected) */}
+          <button
+            type="button"
+            onClick={() => setStatusModalType('PD')}
+            className="bg-white border border-rose-200/90 hover:border-rose-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-rose-500"
+            title="Click to view all Permanently Disconnected (PD) consumers"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 group-hover:bg-rose-600 text-rose-600 group-hover:text-white transition-colors flex items-center justify-center">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-extrabold text-rose-700 bg-rose-50 group-hover:bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200 transition-colors flex items-center gap-0.5">
+                View List <ChevronRight className="w-3 h-3 inline" />
+              </span>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 group-hover:text-rose-900 font-bold uppercase transition-colors">
+                PD (Perm Disconnected)
+              </p>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black text-slate-900 group-hover:text-rose-700 transition-colors">
+                  {metrics.pd_customers_count || 0}
+                </span>
+                <span className="text-xs font-extrabold text-rose-600">
+                  {formatCurrency(metrics.pd_pending_amount || 0)}
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Card 3: BUR (Burnt Meter) */}
+          <button
+            type="button"
+            onClick={() => setStatusModalType('BUR')}
+            className="bg-white border border-orange-200/90 hover:border-orange-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-orange-500"
+            title="Click to view all Burnt Meter (BUR) consumers"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 group-hover:bg-orange-600 text-orange-600 group-hover:text-white transition-colors flex items-center justify-center">
+                <Flame className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-extrabold text-orange-700 bg-orange-50 group-hover:bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200 transition-colors flex items-center gap-0.5">
+                View List <ChevronRight className="w-3 h-3 inline" />
+              </span>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 group-hover:text-orange-900 font-bold uppercase transition-colors">
+                BUR (Burnt Meter)
+              </p>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black text-slate-900 group-hover:text-orange-700 transition-colors">
+                  {metrics.bur_customers_count || 0}
+                </span>
+                <span className="text-xs font-extrabold text-orange-600">
+                  {formatCurrency(metrics.bur_pending_amount || 0)}
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Card 4: DIS (Disconnected) */}
+          <button
+            type="button"
+            onClick={() => setStatusModalType('DIS')}
+            className="bg-white border border-indigo-200/90 hover:border-indigo-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            title="Click to view all Disconnected (DIS) consumers"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white transition-colors flex items-center justify-center">
+                <PowerOff className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 group-hover:bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200 transition-colors flex items-center gap-0.5">
+                View List <ChevronRight className="w-3 h-3 inline" />
+              </span>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 group-hover:text-indigo-900 font-bold uppercase transition-colors">
+                DIS (Disconnected)
+              </p>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black text-slate-900 group-hover:text-indigo-700 transition-colors">
+                  {metrics.dis_customers_count || 0}
+                </span>
+                <span className="text-xs font-extrabold text-indigo-600">
+                  {formatCurrency(metrics.dis_pending_amount || 0)}
+                </span>
+              </div>
+            </div>
+          </button>
         </div>
       </div>
 

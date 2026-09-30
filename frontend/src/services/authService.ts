@@ -14,7 +14,8 @@ function saveSession(token: string, user: User) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   if (typeof window !== 'undefined') {
-    document.cookie = `mv_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+    const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `mv_token=${token}; path=/; max-age=86400; SameSite=Lax${secureFlag}`;
     window.dispatchEvent(new Event('auth-change'));
   }
 }

@@ -106,6 +106,8 @@ class CustomerService:
                     area=cus.get("area", ""),
                     latitude=c_lat,
                     longitude=c_lng,
+                    dtc_code=cus.get("dtc_code"),
+                    disconnection_status=cus.get("disconnection_status"),
                     pending_amount=float(cus.get("pending_amount", 0.0)),
                     due_date=cus.get("due_date"),
                     status=cus.get("status", "pending"),
