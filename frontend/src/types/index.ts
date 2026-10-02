@@ -37,6 +37,7 @@ export interface Customer {
   dtc_code?: string;
   pending_amount: number;
   due_date?: string;
+  pending_days?: number | string;
   disconnection_status?: string;
   status: 'pending' | 'overdue' | 'paid' | 'partially_paid';
   priority?: 'normal' | 'high' | 'critical';

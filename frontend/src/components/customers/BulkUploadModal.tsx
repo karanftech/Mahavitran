@@ -44,10 +44,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
   const handleDownloadSampleCSV = () => {
     const csvContent = [
-      'cus_id,cons_no,meter_id,dtc_code,latitude,longitude,total_due_amt,address,area',
-      'CUS10050,Rajesh Kumar,MTR89901,0441001,21.1458,79.0882,4500,"Plot 12, Civil Lines",Civil Lines',
-      'CUS10051,Pooja Sharma,MTR89902,0441002,21.1390,79.0720,1850,"Shop 5, Commercial Market",Dharampeth',
-      'CUS10052,Anil Deshmukh,MTR89903,0441001,21.1245,79.0680,8900,"Block 4, Bajaj Nagar",Bajaj Nagar',
+      'cus_id,cons_no,meter_id,dtc_code,latitude,longitude,total_due_amt,pending_days,address,area',
+      'CUS10050,Rajesh Kumar,MTR89901,0441001,21.1458,79.0882,4500,45,"Plot 12, Civil Lines",Civil Lines',
+      'CUS10051,Pooja Sharma,MTR89902,0441002,21.1390,79.0720,1850,15,"Shop 5, Commercial Market",Dharampeth',
+      'CUS10052,Anil Deshmukh,MTR89903,0441001,21.1245,79.0680,8900,60,"Block 4, Bajaj Nagar",Bajaj Nagar',
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

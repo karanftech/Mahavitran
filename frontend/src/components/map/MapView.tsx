@@ -207,13 +207,21 @@ export default function MapView({
   const showInfoWindowForCustomer = useCallback((customer: Customer, marker: any) => {
     if (!infoWindowRef.current || !googleMapRef.current || !marker) return;
 
-    const fingerprint = `${customer.customer_id}_${customer.pending_amount}_${customer.status}`;
+    const fingerprint = `${customer.customer_id}_${customer.pending_amount}_${customer.status}_${customer.pending_days ?? customer.due_date}`;
     if (lastOpenWindowFingerprintRef.current === fingerprint) {
       return;
     }
     lastOpenWindowFingerprintRef.current = fingerprint;
 
-    const overdueDays = getOverdueDays(customer.due_date);
+    const rawPendingDays = customer.pending_days ?? (customer as any)['pending days'] ?? (customer as any).days;
+    let pendingDaysValue: string | number | null = null;
+    let isHighPending = false;
+
+    if (rawPendingDays !== undefined && rawPendingDays !== null && rawPendingDays !== '') {
+      const num = Number(rawPendingDays);
+      pendingDaysValue = isNaN(num) ? String(rawPendingDays) : num;
+      isHighPending = !isNaN(num) && num > 30;
+    }
 
     const contentHtml = `
       <div style="padding: 2px 4px; color: #0f172a; font-family: system-ui, -apple-system, sans-serif; min-width: 195px; max-width: 230px; box-sizing: border-box;">
@@ -222,8 +230,11 @@ export default function MapView({
           <p style="margin: 2px 0 0; font-size: 10.5px; color: #64748b; font-weight: 600;">Meter: <span style="color: #0284c7; font-weight: 800; font-family: monospace;">${customer.meter_number}</span></p>
         </div>
 
-        <div style="margin: 4px 0; padding: 3px 6px; background: ${overdueDays > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${overdueDays > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 5px; font-size: 10px; font-weight: 700; color: ${overdueDays > 0 ? '#b91c1c' : '#15803d'};">
-          ${overdueDays > 0 ? `⚠️ Overdue: <b>${overdueDays} days</b> after due date` : `Due Date: ${customer.due_date || 'N/A'}`}
+        <div style="margin: 4px 0; padding: 4px 8px; background: ${isHighPending ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${isHighPending ? '#fecaca' : '#bbf7d0'}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 9.5px; color: ${isHighPending ? '#b91c1c' : '#15803d'}; font-weight: 800; text-transform: uppercase;">Pending Days</span>
+          <span style="font-size: 12.5px; font-weight: 900; color: ${isHighPending ? '#b91c1c' : '#15803d'};">
+            ${pendingDaysValue !== null ? `${pendingDaysValue} Days` : '-'}
+          </span>
         </div>
 
         <div style="margin: 4px 0 6px; padding: 4px 8px; background: #fffbebf5; border: 1px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">

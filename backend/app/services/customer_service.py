@@ -110,6 +110,7 @@ class CustomerService:
                     disconnection_status=cus.get("disconnection_status"),
                     pending_amount=float(cus.get("pending_amount", 0.0)),
                     due_date=cus.get("due_date"),
+                    pending_days=cus.get("pending_days") if cus.get("pending_days") is not None else (cus.get("pending days") if cus.get("pending days") is not None else cus.get("days")),
                     status=cus.get("status", "pending"),
                     priority=cus.get("priority", "normal"),
                     assigned_officer_id=cus.get("assigned_officer_id"),

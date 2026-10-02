@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 
 class MeterSchema(BaseModel):
@@ -27,6 +27,7 @@ class CustomerCreate(BaseModel):
     dtc_code: Optional[str] = None
     pending_amount: Optional[float] = 0.0
     due_date: Optional[str] = None
+    pending_days: Optional[Any] = None
     status: Optional[str] = "pending"
     priority: Optional[str] = "normal"
     disconnection_status: Optional[str] = None
@@ -43,6 +44,7 @@ class CustomerUpdate(BaseModel):
     longitude: Optional[float] = None
     dtc_code: Optional[str] = None
     disconnection_status: Optional[str] = None
+    pending_days: Optional[Any] = None
     assigned_officer_id: Optional[str] = None
     status: Optional[str] = None
 
@@ -61,6 +63,7 @@ class CustomerResponse(BaseModel):
     disconnection_status: Optional[str] = None
     pending_amount: float = 0.0
     due_date: Optional[str] = None
+    pending_days: Optional[Any] = None
     status: str = "pending"  # pending, overdue, paid, partially_paid
     priority: str = "normal"  # normal, high, critical
     assigned_officer_id: Optional[str] = None

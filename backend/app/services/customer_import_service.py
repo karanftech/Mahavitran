@@ -48,6 +48,20 @@ class CustomerImportService:
                 mapping['dtc_code'] = idx
             elif any(k in h for k in ['disconnection_status', 'meter_status', 'disconnection', 'status_code', 'category', 'action', 'status']):
                 mapping['disconnection_status'] = idx
+            elif any(k in h for k in [
+                'pending days', 'pending_days', 'pending day', 'pending_day',
+                'overdue days', 'overdue_days', 'overdue day', 'overdue_day',
+                'due days', 'due_days', 'due day', 'due_day',
+                'aging', 'ageing', 'days pending', 'day pending',
+                'no of days', 'no of day', 'number of days', 'no. of days',
+                'os days', 'o/s days', 'os day', 'o/s day',
+                'outstanding days', 'outstanding day',
+                'arrears days', 'bill days', 'delay days', 'delayed days',
+                'pen days', 'pend days', 'pen day', 'pend day'
+            ]) or h in ['days', 'day', 'pending', 'overdue', 'age']:
+                mapping['pending_days'] = idx
+            elif any(k in h for k in ['due date', 'due_date', 'duedate', 'bill date', 'bill_date']):
+                mapping['due_date'] = idx
             elif 'address' in h:
                 mapping['address'] = idx
             elif 'area' in h:
@@ -271,6 +285,35 @@ class CustomerImportService:
 
                 officer_id_to_assign = uploader_officer_id or ("OFF-1001" if (row_idx % 2 == 0) else "OFF-1002")
 
+                # Parse pending_days
+                pending_days = None
+                raw_pending_days = get_val('pending_days', '')
+                if raw_pending_days:
+                    try:
+                        pending_days = int(float(str(raw_pending_days).strip()))
+                    except (ValueError, TypeError):
+                        try:
+                            pending_days = str(raw_pending_days).strip()
+                        except Exception:
+                            pending_days = None
+
+                # Fallback: scan row if pending_days was not found by mapping
+                if pending_days is None:
+                    for col_idx, cell_val in enumerate(row):
+                        if col_idx < len(headers):
+                            h_norm = CustomerImportService.normalize_header(headers[col_idx])
+                            if any(w in h_norm for w in ['day', 'pend', 'overdue', 'aging', 'ageing', 'delay']) and 'amount' not in h_norm and 'amt' not in h_norm and 'date' not in h_norm:
+                                try:
+                                    s_val = str(cell_val).strip()
+                                    if s_val and s_val.lower() not in ('none', 'nan', 'null', ''):
+                                        pending_days = int(float(s_val))
+                                        break
+                                except (ValueError, TypeError):
+                                    pass
+
+                raw_due_date = get_val('due_date', '')
+                due_date = raw_due_date if raw_due_date else default_due_date
+
                 customer_doc = {
                     "customer_id": customer_id,
                     "name": name,
@@ -284,7 +327,8 @@ class CustomerImportService:
                     "meter_number": meter_number,
                     "dtc_code": dtc_code,
                     "pending_amount": pending_amount,
-                    "due_date": default_due_date,
+                    "due_date": due_date,
+                    "pending_days": pending_days,
                     "status": status,
                     "disconnection_status": disconn_status,
                     "priority": priority,

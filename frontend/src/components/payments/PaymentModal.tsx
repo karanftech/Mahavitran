@@ -28,19 +28,20 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const { isOnline, refreshQueueCount } = useOffline();
 
-  const [collectedAmount, setCollectedAmount] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
+  const [collectedAmount, setCollectedAmount] = useState<string>('0');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('td');
   const [remarks, setRemarks] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill collected amount with customer's pending amount by default
+  // Pre-fill collected amount with 0 for status action by default
   React.useEffect(() => {
     if (customer && isOpen) {
-      setCollectedAmount(customer.pending_amount.toString());
+      setCollectedAmount('0');
       setError(null);
       setRemarks('');
+      setPaymentMethod('td');
       setIsConfirmOpen(false);
     }
   }, [customer, isOpen]);
@@ -50,8 +51,6 @@ export default function PaymentModal({
   const overdueDays = getOverdueDays(customer.due_date);
 
   const paymentMethodsList = [
-    { key: 'cash' as const, label: 'CASH', desc: 'Cash Payment' },
-    { key: 'upi_online' as const, label: 'UPI/ONLINE', desc: 'Online / UPI' },
     { key: 'td' as const, label: 'TD', desc: 'Temp Disconnected' },
     { key: 'pd' as const, label: 'PD', desc: 'Perm Disconnected' },
     { key: 'bur' as const, label: 'BUR', desc: 'Burnt Meter' },
@@ -175,7 +174,7 @@ export default function PaymentModal({
             )}
           </div>
 
-          {/* Overdue Days Paragraph Display */}
+          {/* Overdue / Due Days Paragraph Display */}
           <div className={`p-2 rounded-md border flex items-center justify-between text-xs ${
             overdueDays > 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
           }`}>
@@ -184,7 +183,11 @@ export default function PaymentModal({
               <span className="font-medium">Due Date: <b>{formatDate(customer.due_date)}</b></span>
             </div>
             <span className="font-black text-[11px] uppercase tracking-wide">
-              {overdueDays > 0 ? `⚠️ ${overdueDays} Days After Due Date` : 'Within Due Period'}
+              {customer.pending_days !== undefined && customer.pending_days !== null && customer.pending_days !== ''
+                ? `Pending Days: ${customer.pending_days}`
+                : overdueDays > 0
+                ? `⚠️ ${overdueDays} Days After Due Date`
+                : 'Within Due Period'}
             </span>
           </div>
         </div>
@@ -215,10 +218,10 @@ export default function PaymentModal({
           />
         </div>
 
-        {/* Action / Payment Mode: CASH, UPI, TD, PD, BUR, DIS */}
+        {/* Action / Meter Status Mode: TD, PD, BUR, DIS */}
         <div>
-          <label className="font-semibold text-slate-700 block mb-1.5">Payment / Meter Action Mode *</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="font-semibold text-slate-700 block mb-1.5">Action / Status Mode *</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {paymentMethodsList.map((method) => {
               const isSelected = paymentMethod === method.key;
               const isStatus = ['td', 'pd', 'bur', 'dis'].includes(method.key);
