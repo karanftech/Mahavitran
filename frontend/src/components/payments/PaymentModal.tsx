@@ -17,7 +17,7 @@ interface PaymentModalProps {
   onSuccess: (paymentRecord: PaymentRecord) => void;
 }
 
-export type PaymentMethodType = 'cash' | 'upi_online' | 'td' | 'pd' | 'bur' | 'dis';
+export type PaymentMethodType = 'td' | 'pd' | 'bur' | 'dis';
 
 export default function PaymentModal({
   isOpen,
@@ -28,17 +28,21 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const { isOnline, refreshQueueCount } = useOffline();
 
-  const [collectedAmount, setCollectedAmount] = useState<string>('0');
+  const [collectedAmount, setCollectedAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('td');
   const [remarks, setRemarks] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill collected amount with 0 for status action by default
+  // Auto-fill collected amount with customer's pending amount by default
   React.useEffect(() => {
     if (customer && isOpen) {
-      setCollectedAmount('0');
+      setCollectedAmount(
+        customer.pending_amount !== undefined && customer.pending_amount !== null
+          ? customer.pending_amount.toString()
+          : ''
+      );
       setError(null);
       setRemarks('');
       setPaymentMethod('td');
@@ -49,6 +53,16 @@ export default function PaymentModal({
   if (!customer) return null;
 
   const overdueDays = getOverdueDays(customer.due_date);
+  const rawPendingDays =
+    customer.pending_days !== undefined && customer.pending_days !== null && customer.pending_days !== ''
+      ? customer.pending_days
+      : (customer as any)['pending days'] !== undefined && (customer as any)['pending days'] !== null && (customer as any)['pending days'] !== ''
+      ? (customer as any)['pending days']
+      : (customer as any).days !== undefined && (customer as any).days !== null && (customer as any).days !== ''
+      ? (customer as any).days
+      : overdueDays > 0
+      ? overdueDays
+      : 0;
 
   const paymentMethodsList = [
     { key: 'td' as const, label: 'TD', desc: 'Temp Disconnected' },
@@ -84,15 +98,11 @@ export default function PaymentModal({
 
     const amt = parseFloat(collectedAmount) || 0;
 
-    // Map UI payment method values to backend-accepted values
-    const backendPaymentMethod: string =
-      paymentMethod === 'upi_online' ? 'upi' : paymentMethod;
-
     const payload = {
       customer_id: customer.customer_id,
       meter_id: customer.meters?.[0]?.meter_id,
       amount: amt,
-      payment_method: backendPaymentMethod as any,
+      payment_method: paymentMethod as any,
       disconnection_status: ['td', 'pd', 'bur', 'dis'].includes(paymentMethod) ? paymentMethod.toUpperCase() : undefined,
       remarks: remarks.trim() || undefined,
       collection_latitude: officerCoords?.latitude,
@@ -174,20 +184,18 @@ export default function PaymentModal({
             )}
           </div>
 
-          {/* Overdue / Due Days Paragraph Display */}
-          <div className={`p-2 rounded-md border flex items-center justify-between text-xs ${
-            overdueDays > 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          {/* Pending Days Banner Display */}
+          <div className={`p-2.5 rounded-lg border flex items-center gap-2 text-xs ${
+            Number(rawPendingDays) > 30
+              ? 'bg-red-50 text-red-700 border-red-200'
+              : Number(rawPendingDays) > 0
+              ? 'bg-amber-50 text-amber-800 border-amber-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
           }`}>
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 shrink-0" />
-              <span className="font-medium">Due Date: <b>{formatDate(customer.due_date)}</b></span>
-            </div>
-            <span className="font-black text-[11px] uppercase tracking-wide">
-              {customer.pending_days !== undefined && customer.pending_days !== null && customer.pending_days !== ''
-                ? `Pending Days: ${customer.pending_days}`
-                : overdueDays > 0
-                ? `⚠️ ${overdueDays} Days After Due Date`
-                : 'Within Due Period'}
+            <Clock className="w-4 h-4 shrink-0 text-amber-600" />
+            <span className="font-bold text-slate-700">Pending Days:</span>
+            <span className="font-black text-sm text-slate-900">
+              {rawPendingDays} {Number(rawPendingDays) === 1 ? 'Day' : 'Days'}
             </span>
           </div>
         </div>
@@ -201,12 +209,20 @@ export default function PaymentModal({
 
         {/* Amount Collected Input */}
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">
-            Amount Collected (₹) *
-            {['td', 'pd', 'bur', 'dis'].includes(paymentMethod) && (
-              <span className="text-slate-400 font-normal ml-1">(Enter 0 if recording status change only)</span>
+          <div className="flex justify-between items-center mb-1">
+            <label className="font-semibold text-slate-700 block">
+              Amount Collected (₹) *
+            </label>
+            {customer.pending_amount !== undefined && (
+              <button
+                type="button"
+                onClick={() => setCollectedAmount(customer.pending_amount.toString())}
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+              >
+                Auto-fill Due (₹{customer.pending_amount})
+              </button>
             )}
-          </label>
+          </div>
           <input
             type="number"
             step="0.01"
@@ -231,9 +247,6 @@ export default function PaymentModal({
                   type="button"
                   onClick={() => {
                     setPaymentMethod(method.key);
-                    if (isStatus && !collectedAmount) {
-                      setCollectedAmount('0');
-                    }
                   }}
                   className={`py-2 px-2 rounded-lg font-bold text-left transition-all border cursor-pointer ${
                     isSelected
@@ -323,12 +336,12 @@ export default function PaymentModal({
                   {paymentMethod.toUpperCase()}
                 </span>
               </div>
-              {overdueDays > 0 && (
-                <div className="flex justify-between text-red-600 text-[11px] font-bold">
-                  <span>Overdue:</span>
-                  <span>{overdueDays} Days Past Due</span>
-                </div>
-              )}
+              <div className="flex justify-between text-[11px] font-bold">
+                <span className="text-slate-500 font-medium">Pending Days:</span>
+                <span className={Number(rawPendingDays) > 0 ? 'text-amber-700 font-extrabold' : 'text-emerald-700'}>
+                  {rawPendingDays} {Number(rawPendingDays) === 1 ? 'Day' : 'Days'}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 pt-2">
