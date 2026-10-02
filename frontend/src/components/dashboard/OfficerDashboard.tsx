@@ -261,12 +261,12 @@ export default function OfficerDashboard() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: TD (Temporary Disconnected) */}
+          {/* Card 1: TD (Temporary Disconnect) */}
           <button
             type="button"
             onClick={() => setStatusModalType('TD')}
             className="bg-white border border-amber-200/90 hover:border-amber-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-500"
-            title="Click to view all Temporary Disconnected (TD) consumers"
+            title="Click to view all Temporary Disconnect (TD) consumers"
           >
             <div className="flex items-center justify-between">
               <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-amber-600 text-amber-600 group-hover:text-white transition-colors flex items-center justify-center">
@@ -278,7 +278,7 @@ export default function OfficerDashboard() {
             </div>
             <div>
               <p className="text-[11px] text-slate-500 group-hover:text-amber-900 font-bold uppercase transition-colors">
-                TD (Temp Disconnected)
+                TD (Temporary Disconnect)
               </p>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-2xl font-black text-slate-900 group-hover:text-amber-700 transition-colors">
@@ -291,12 +291,12 @@ export default function OfficerDashboard() {
             </div>
           </button>
 
-          {/* Card 2: PD (Permanently Disconnected) */}
+          {/* Card 2: PD (Permanent Disconnect) */}
           <button
             type="button"
             onClick={() => setStatusModalType('PD')}
             className="bg-white border border-rose-200/90 hover:border-rose-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-rose-500"
-            title="Click to view all Permanently Disconnected (PD) consumers"
+            title="Click to view all Permanent Disconnect (PD) consumers"
           >
             <div className="flex items-center justify-between">
               <div className="w-8 h-8 rounded-lg bg-rose-50 group-hover:bg-rose-600 text-rose-600 group-hover:text-white transition-colors flex items-center justify-center">
@@ -308,7 +308,7 @@ export default function OfficerDashboard() {
             </div>
             <div>
               <p className="text-[11px] text-slate-500 group-hover:text-rose-900 font-bold uppercase transition-colors">
-                PD (Perm Disconnected)
+                PD (Permanent Disconnect)
               </p>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-2xl font-black text-slate-900 group-hover:text-rose-700 transition-colors">
@@ -321,16 +321,16 @@ export default function OfficerDashboard() {
             </div>
           </button>
 
-          {/* Card 3: BUR (Burnt Meter) */}
+          {/* Card 3: BUR (Bill Under Review) */}
           <button
             type="button"
             onClick={() => setStatusModalType('BUR')}
             className="bg-white border border-orange-200/90 hover:border-orange-400 p-4 rounded-xl shadow-2xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer text-left space-y-1.5 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-orange-500"
-            title="Click to view all Burnt Meter (BUR) consumers"
+            title="Click to view all Bill Under Review (BUR) consumers"
           >
             <div className="flex items-center justify-between">
               <div className="w-8 h-8 rounded-lg bg-orange-50 group-hover:bg-orange-600 text-orange-600 group-hover:text-white transition-colors flex items-center justify-center">
-                <Flame className="w-4 h-4" />
+                <FileText className="w-4 h-4" />
               </div>
               <span className="text-[10px] font-extrabold text-orange-700 bg-orange-50 group-hover:bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200 transition-colors flex items-center gap-0.5">
                 View List <ChevronRight className="w-3 h-3 inline" />
@@ -338,7 +338,7 @@ export default function OfficerDashboard() {
             </div>
             <div>
               <p className="text-[11px] text-slate-500 group-hover:text-orange-900 font-bold uppercase transition-colors">
-                BUR (Burnt Meter)
+                BUR (Bill Under Review)
               </p>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-2xl font-black text-slate-900 group-hover:text-orange-700 transition-colors">

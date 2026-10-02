@@ -230,57 +230,6 @@ export default function MapFilters({
         </div>
       </div>
 
-      {/* Active Filter Chips with Individual Cross (X) Dismiss */}
-      {isFilterActive && (
-        <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
-          {filters.overduePeriod && filters.overduePeriod !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100/90 text-blue-800 border border-blue-200 shadow-2xs">
-              <span>{overduePeriodOptions.find((o) => o.key === filters.overduePeriod)?.label || filters.overduePeriod}</span>
-              <button
-                type="button"
-                onClick={() => onFilterChange({ ...filters, overduePeriod: 'all' })}
-                className="hover:text-blue-950 cursor-pointer p-0.5"
-                title="Remove overdue filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {filters.outstandingAmount && filters.outstandingAmount !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 shadow-2xs">
-              <span>{outstandingAmountOptions.find((o) => o.key === filters.outstandingAmount)?.label || filters.outstandingAmount}</span>
-              <button
-                type="button"
-                onClick={() => onFilterChange({ ...filters, outstandingAmount: 'all' })}
-                className="hover:text-emerald-950 cursor-pointer p-0.5"
-                title="Remove amount filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {filters.dtcCode && filters.dtcCode !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100/90 text-amber-800 border border-amber-200 shadow-2xs">
-              <span>DTC: {filters.dtcCode}</span>
-              <button
-                type="button"
-                onClick={() => onFilterChange({ ...filters, dtcCode: 'all' })}
-                className="hover:text-amber-950 cursor-pointer p-0.5"
-                title="Remove DTC filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer ml-1"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
 
       {/* Filter Options Dropdown Popup with Checkboxes */}
       {isFilterDropdownOpen && (

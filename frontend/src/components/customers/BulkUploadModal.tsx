@@ -44,10 +44,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
   const handleDownloadSampleCSV = () => {
     const csvContent = [
-      'cus_id,cons_no,meter_id,dtc_code,latitude,longitude,total_due_amt,pending_days,address,area',
-      'CUS10050,Rajesh Kumar,MTR89901,0441001,21.1458,79.0882,4500,45,"Plot 12, Civil Lines",Civil Lines',
-      'CUS10051,Pooja Sharma,MTR89902,0441002,21.1390,79.0720,1850,15,"Shop 5, Commercial Market",Dharampeth',
-      'CUS10052,Anil Deshmukh,MTR89903,0441001,21.1245,79.0680,8900,60,"Block 4, Bajaj Nagar",Bajaj Nagar',
+      'consumer_no,consumer_name,meter_id,dtc_code,latitude,longitude,pending_amount,days_pending',
+      '0441001001,Rajesh Kumar,MTR89901,0441001,21.1458,79.0882,4500,45',
+      '0441001002,Pooja Sharma,MTR89902,0441002,21.1390,79.0720,1850,15',
+      '0441001003,Anil Deshmukh,MTR89903,0441001,21.1245,79.0680,8900,60',
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -120,7 +120,16 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 <p className="text-sm font-bold text-blue-900">Need a sample file template?</p>
                 <p className="text-xs text-blue-700 font-medium">Supported CSV / Excel column headers:</p>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {['cus_id', 'cons_no', 'meter_id', 'dtc_code', 'latitude', 'longitude', 'total_due_amt', 'address', 'area'].map((h) => (
+                  {[
+                    'consumer_no',
+                    'consumer_name',
+                    'meter_id',
+                    'dtc_code',
+                    'latitude',
+                    'longitude',
+                    'pending_amount',
+                    'days_pending',
+                  ].map((h) => (
                     <span
                       key={h}
                       className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 border border-blue-200 text-[11px] font-mono font-semibold text-blue-800"
@@ -139,7 +148,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               </button>
             </div>
             <p className="text-[10px] text-blue-600 font-medium">
-              address and area is optional
+              Optional columns: address, area
             </p>
           </div>
 

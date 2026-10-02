@@ -13,7 +13,7 @@ import {
   RotateCcw,
   Zap,
   AlertTriangle,
-  Flame,
+  FileText,
   ShieldAlert,
   PowerOff,
 } from 'lucide-react';
@@ -35,7 +35,7 @@ const STATUS_CONFIG: Record<
 > = {
   TD: {
     label: 'TD',
-    fullTitle: 'Temporary Disconnected (TD) Meters',
+    fullTitle: 'Temporary Disconnect (TD) Meters',
     color: 'text-amber-700',
     bg: 'bg-amber-50',
     border: 'border-amber-300',
@@ -43,7 +43,7 @@ const STATUS_CONFIG: Record<
   },
   PD: {
     label: 'PD',
-    fullTitle: 'Permanently Disconnected (PD) Meters',
+    fullTitle: 'Permanent Disconnect (PD) Meters',
     color: 'text-rose-700',
     bg: 'bg-rose-50',
     border: 'border-rose-300',
@@ -51,11 +51,11 @@ const STATUS_CONFIG: Record<
   },
   BUR: {
     label: 'BUR',
-    fullTitle: 'Burnt Meter (BUR) Consumers',
+    fullTitle: 'Bill Under Review (BUR) Consumers',
     color: 'text-orange-700',
     bg: 'bg-orange-50',
     border: 'border-orange-300',
-    icon: Flame,
+    icon: FileText,
   },
   DIS: {
     label: 'DIS',

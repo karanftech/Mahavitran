@@ -65,9 +65,9 @@ export default function PaymentModal({
       : 0;
 
   const paymentMethodsList = [
-    { key: 'td' as const, label: 'TD', desc: 'Temp Disconnected' },
-    { key: 'pd' as const, label: 'PD', desc: 'Perm Disconnected' },
-    { key: 'bur' as const, label: 'BUR', desc: 'Burnt Meter' },
+    { key: 'td' as const, label: 'TD', desc: 'Temporary Disconnect' },
+    { key: 'pd' as const, label: 'PD', desc: 'Permanent Disconnect' },
+    { key: 'bur' as const, label: 'BUR', desc: 'Bill Under Review' },
     { key: 'dis' as const, label: 'DIS', desc: 'Disconnected' },
   ];
 

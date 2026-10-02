@@ -29,14 +29,16 @@ class CustomerImportService:
         mapping = {}
         for idx, raw_h in enumerate(headers):
             h = CustomerImportService.normalize_header(raw_h)
+            if not h:
+                continue
 
-            if any(k in h for k in ['cus id', 'customer id', 'customer_id', 'cus_id', 'cust id']):
-                mapping['customer_id'] = idx
-            elif any(k in h for k in ['cons no', 'cons_no', 'consumer no', 'consumer_no', 'name', 'consumer name']):
+            if any(k in h for k in ['consumer name', 'customer name', 'cust name', 'cons name']) or h == 'name':
                 mapping['name'] = idx
+            elif any(k in h for k in ['consumer no', 'consumer num', 'consumer number', 'consumer_no', 'customer id', 'customer_id', 'cus id', 'cus_id', 'cust id', 'account no', 'ca no']):
+                mapping['customer_id'] = idx
             elif any(k in h for k in ['meter id', 'meter_id', 'meter number', 'meter_number', 'meter no', 'mtr id']):
                 mapping['meter_number'] = idx
-            elif any(k in h for k in ['total deu amt', 'total_due_amt', 'total due amt', 'pending_amount', 'due amount', 'bill amount', 'pending amount', 'amount']):
+            elif any(k in h for k in ['pending amount', 'total deu amt', 'total_due_amt', 'total due amt', 'pending_amount', 'due amount', 'bill amount', 'amount']):
                 mapping['pending_amount'] = idx
             elif any(k in h for k in ['latitude', 'lat']):
                 mapping['latitude'] = idx
@@ -49,10 +51,11 @@ class CustomerImportService:
             elif any(k in h for k in ['disconnection_status', 'meter_status', 'disconnection', 'status_code', 'category', 'action', 'status']):
                 mapping['disconnection_status'] = idx
             elif any(k in h for k in [
+                'days pending', 'day pending',
                 'pending days', 'pending_days', 'pending day', 'pending_day',
                 'overdue days', 'overdue_days', 'overdue day', 'overdue_day',
                 'due days', 'due_days', 'due day', 'due_day',
-                'aging', 'ageing', 'days pending', 'day pending',
+                'aging', 'ageing',
                 'no of days', 'no of day', 'number of days', 'no. of days',
                 'os days', 'o/s days', 'os day', 'o/s day',
                 'outstanding days', 'outstanding day',
@@ -66,6 +69,11 @@ class CustomerImportService:
                 mapping['address'] = idx
             elif 'area' in h:
                 mapping['area'] = idx
+            elif any(k in h for k in ['cons no', 'cons_no']):
+                if 'customer_id' in mapping and 'name' not in mapping:
+                    mapping['name'] = idx
+                else:
+                    mapping['customer_id'] = idx
 
         return mapping
 
