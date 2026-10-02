@@ -474,10 +474,19 @@ export default function MapView({
     const google = (window as any).google;
     if (!google) return;
 
-    // 1. MULTI-STOP ROUTE POLYLINE (Always render if multiRoute exists)
-    const multiPath = multiRoute?.coordinates_path;
-    if (multiPath && multiPath.length >= 2) {
-      const pathLatLngs = multiPath
+    const isActivelyNavigating = !!navState?.active;
+
+    // 1. MULTI-STOP ROUTE FOR ALL METERS (Filtered DTC or Multi-Stop Route)
+    // Always prefer multiRoute.coordinates_path so the route connecting ALL meters in sequence is displayed!
+    const multiPathCoords = (multiRoute?.coordinates_path && multiRoute.coordinates_path.length >= 2)
+      ? multiRoute.coordinates_path
+      : (route?.coordinates_path && route.coordinates_path.length >= 2)
+      ? route.coordinates_path
+      : null;
+
+    const drawFallbackPolyline = (coords: Coordinates[]) => {
+      if (!googleMapRef.current) return;
+      const pathLatLngs = coords
         .map((pt: any) => {
           const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
           const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
@@ -494,8 +503,8 @@ export default function MapView({
             map: googleMapRef.current,
             path: pathLatLngs,
             strokeColor: '#0284c7',
-            strokeWeight: 7,
-            strokeOpacity: 0.95,
+            strokeWeight: 6,
+            strokeOpacity: 0.85,
             zIndex: 9999,
           });
         } else {
@@ -517,44 +526,19 @@ export default function MapView({
           }
         }
       }
-    } else {
-      // Single route fallback if route prop exists
-      const singlePath = route?.coordinates_path;
-      if (singlePath && singlePath.length >= 2) {
-        const pathLatLngs = singlePath
-          .map((pt: any) => {
-            const lat = typeof pt.latitude === 'number' ? pt.latitude : (typeof pt.lat === 'number' ? pt.lat : null);
-            const lng = typeof pt.longitude === 'number' ? pt.longitude : (typeof pt.lng === 'number' ? pt.lng : null);
-            if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-              return new google.maps.LatLng(lat, lng);
-            }
-            return null;
-          })
-          .filter(Boolean);
+    };
 
-        if (pathLatLngs.length >= 2) {
-          if (!fallbackPolylineRef.current) {
-            fallbackPolylineRef.current = new google.maps.Polyline({
-              map: googleMapRef.current,
-              path: pathLatLngs,
-              strokeColor: '#0284c7',
-              strokeWeight: 7,
-              strokeOpacity: 0.95,
-              zIndex: 9999,
-            });
-          } else {
-            fallbackPolylineRef.current.setPath(pathLatLngs);
-            fallbackPolylineRef.current.setMap(googleMapRef.current);
-          }
-        }
-      } else if (fallbackPolylineRef.current) {
-        fallbackPolylineRef.current.setMap(null);
-      }
+    // Render the complete route connecting ALL meters in the filtered set
+    if (multiPathCoords) {
+      drawFallbackPolyline(multiPathCoords);
+    } else if (fallbackPolylineRef.current) {
+      fallbackPolylineRef.current.setMap(null);
     }
 
-    // 2. SINGLE LEG DIRECTIONS SERVICE (Only for single navigation or single pin preview of pending meters)
-    const isSingleNav = navState?.active && !multiRoute;
-    const dest = isSingleNav ? navState.targetCustomer : (selectedCustomer && !multiRoute ? selectedCustomer : null);
+    // 2. TURN-BY-TURN DIRECTIONS SERVICE
+    // When actively navigating: route specifically to the target destination customer (navState.targetCustomer)
+    // When not navigating: route to selectedCustomer if one is selected for preview
+    const dest = isActivelyNavigating ? navState.targetCustomer : (selectedCustomer || null);
     const isDestCollected = dest && (dest.status === 'paid' || (dest.pending_amount !== undefined && dest.pending_amount <= 0));
 
     if (!directionsServiceRef.current || !directionsRendererRef.current || !dest || isDestCollected) {
@@ -583,6 +567,11 @@ export default function MapView({
         directionsRendererRef.current.setOptions({ preserveViewport: true });
         directionsRendererRef.current.setMap(googleMapRef.current);
         directionsRendererRef.current.setDirections(result);
+
+        // Keep fallbackPolylineRef active if multiRoute exists so ALL meters remain connected on map
+        if (!multiRoute && fallbackPolylineRef.current) {
+          fallbackPolylineRef.current.setMap(null);
+        }
 
         if (onDirectionsCalculatedRef.current) {
           const route0 = result.routes[0];
@@ -614,7 +603,14 @@ export default function MapView({
           });
         }
       } else {
-        directionsRendererRef.current.setMap(null);
+        // Directions API failed/denied (e.g. REQUEST_DENIED or rate-limited on development keys)
+        // Ensure the fallback polyline stays visible on the map so navigation NEVER vanishes!
+        if (directionsRendererRef.current) {
+          directionsRendererRef.current.setMap(null);
+        }
+        if (multiPathCoords) {
+          drawFallbackPolyline(multiPathCoords);
+        }
       }
     });
   }, [
@@ -774,15 +770,18 @@ export default function MapView({
 
     // Route polyline (Leaflet fallback uses backend coordinates)
     if (leafletRoutePoly.current) { leafletRoutePoly.current.remove(); leafletRoutePoly.current = null; }
-    const activePath = route?.coordinates_path?.length ? route.coordinates_path
-      : multiRoute?.coordinates_path?.length ? multiRoute.coordinates_path : null;
+    const activePath = multiRoute?.coordinates_path?.length
+      ? multiRoute.coordinates_path
+      : route?.coordinates_path?.length
+      ? route.coordinates_path
+      : null;
     if (activePath) {
       leafletRoutePoly.current = L.polyline(
         activePath.map((p) => [p.latitude, p.longitude]),
         { color: '#0284c7', weight: 5, opacity: 0.85 }
       ).addTo(leafletMapRef.current);
     }
-  }, [mapEngine, officerCoords, customers, selectedCustomer, route, multiRoute, isFollowing]);
+  }, [mapEngine, officerCoords, customers, selectedCustomer, route, multiRoute, isFollowing, navState?.active]);
 
   // ── 9. Map Layer Switcher ────────────────────────────────────────────────────
   const handleSelectLayer = (layer: MapLayerType) => {

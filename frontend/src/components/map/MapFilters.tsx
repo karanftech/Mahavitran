@@ -199,6 +199,17 @@ export default function MapFilters({
               </button>
               <span className="text-[9px] font-bold text-red-600 leading-none">stop</span>
             </div>
+          ) : selectedCustomer && onNavigateSelected ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={onNavigateSelected}
+                className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+                title={`Start Navigation to ${selectedCustomer.name}`}
+              >
+                <Navigation className="w-3.5 h-3.5 fill-white stroke-none" />
+              </button>
+              <span className="text-[9px] font-bold text-blue-600 leading-none">start</span>
+            </div>
           ) : onNavigateAll ? (
             <div className="flex flex-col items-center gap-0.5">
               <button
@@ -212,17 +223,6 @@ export default function MapFilters({
                 ) : (
                   <Navigation className="w-3.5 h-3.5 fill-white stroke-none" />
                 )}
-              </button>
-              <span className="text-[9px] font-bold text-blue-600 leading-none">start</span>
-            </div>
-          ) : selectedCustomer && onNavigateSelected ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <button
-                onClick={onNavigateSelected}
-                className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
-                title={`Start Navigation to ${selectedCustomer.name}`}
-              >
-                <Navigation className="w-3.5 h-3.5 fill-white stroke-none" />
               </button>
               <span className="text-[9px] font-bold text-blue-600 leading-none">start</span>
             </div>

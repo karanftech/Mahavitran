@@ -223,12 +223,8 @@ class MapsService:
         urban_distance = air_distance * 1.35
         duration_sec = urban_distance / 6.94
 
-        mid_lat = dest_lat
-        mid_lng = origin_lng
-
         points = [
             (origin_lat, origin_lng),
-            (mid_lat, mid_lng),
             (dest_lat, dest_lng)
         ]
         
@@ -236,23 +232,15 @@ class MapsService:
 
         coords_path = [
             Coordinates(latitude=origin_lat, longitude=origin_lng),
-            Coordinates(latitude=mid_lat, longitude=mid_lng),
             Coordinates(latitude=dest_lat, longitude=dest_lng)
         ]
 
         steps = [
             RouteStep(
-                instruction="Head towards target area along main street",
-                distance_text=f"{urban_distance * 0.6 / 1000.0:.1f} km",
-                duration_text=f"{int((duration_sec * 0.6) // 60)} min",
+                instruction="Proceed directly towards consumer meter location",
+                distance_text=f"{urban_distance / 1000.0:.1f} km",
+                duration_text=f"{int(duration_sec // 60)} min",
                 start_location=Coordinates(latitude=origin_lat, longitude=origin_lng),
-                end_location=Coordinates(latitude=mid_lat, longitude=mid_lng)
-            ),
-            RouteStep(
-                instruction="Turn into customer alley / street towards electricity meter",
-                distance_text=f"{urban_distance * 0.4 / 1000.0:.1f} km",
-                duration_text=f"{int((duration_sec * 0.4) // 60)} min",
-                start_location=Coordinates(latitude=mid_lat, longitude=mid_lng),
                 end_location=Coordinates(latitude=dest_lat, longitude=dest_lng)
             )
         ]
@@ -371,12 +359,8 @@ class MapsService:
                     air_d = haversine_distance(prev_p[0], prev_p[1], curr_p[0], curr_p[1])
                     leg_dist = air_d * 1.35
                     leg_dur = leg_dist / 6.94
-                    # Generate street corner waypoint so fallback route follows road grid instead of cutting across blocks
-                    mid_lat = curr_p[0]
-                    mid_lng = prev_p[1]
                     leg_coords = [
                         Coordinates(latitude=prev_p[0], longitude=prev_p[1]),
-                        Coordinates(latitude=mid_lat, longitude=mid_lng),
                         Coordinates(latitude=curr_p[0], longitude=curr_p[1])
                     ]
 

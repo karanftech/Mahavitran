@@ -234,6 +234,22 @@ async def list_customers(
         meters = meters_by_customer.get(cid, [])
         officer_name = officer_names_map.get(cus.get("assigned_officer_id"))
 
+        c_lat = float(cus.get("latitude", 0.0))
+        c_lng = float(cus.get("longitude", 0.0))
+        c_dtc = cus.get("dtc_code")
+
+        if (c_lat == 0.0 or c_lng == 0.0) and meters:
+            for m in meters:
+                if m.latitude != 0.0 and m.longitude != 0.0:
+                    c_lat, c_lng = m.latitude, m.longitude
+                    break
+
+        if not c_dtc and meters:
+            for m in meters:
+                if m.dtc_code:
+                    c_dtc = m.dtc_code
+                    break
+
         results.append(
             CustomerResponse(
                 id=str(cus["_id"]),
@@ -244,9 +260,9 @@ async def list_customers(
                 email=cus.get("email"),
                 address=cus.get("address", ""),
                 area=cus.get("area", ""),
-                latitude=float(cus.get("latitude", 0.0)),
-                longitude=float(cus.get("longitude", 0.0)),
-                dtc_code=cus.get("dtc_code"),
+                latitude=c_lat,
+                longitude=c_lng,
+                dtc_code=c_dtc,
                 disconnection_status=cus.get("disconnection_status"),
                 pending_amount=float(cus.get("pending_amount", 0.0)),
                 due_date=cus.get("due_date"),
@@ -420,6 +436,21 @@ async def get_customer(
 
     officer_name = officer_names_map.get(cus.get("assigned_officer_id"))
 
+    c_lat = float(cus.get("latitude", 0.0))
+    c_lng = float(cus.get("longitude", 0.0))
+    c_dtc = cus.get("dtc_code")
+
+    if (c_lat == 0.0 or c_lng == 0.0) and meters:
+        for m in meters:
+            if m.latitude != 0.0 and m.longitude != 0.0:
+                c_lat, c_lng = m.latitude, m.longitude
+                break
+
+    if not c_dtc and meters:
+        for m in meters:
+            if m.dtc_code:
+                c_dtc = m.dtc_code
+                break
 
     return CustomerResponse(
         id=str(cus["_id"]),
@@ -430,9 +461,9 @@ async def get_customer(
         email=cus.get("email"),
         address=cus.get("address", ""),
         area=cus.get("area", ""),
-        latitude=float(cus.get("latitude", 0.0)),
-        longitude=float(cus.get("longitude", 0.0)),
-        dtc_code=cus.get("dtc_code"),
+        latitude=c_lat,
+        longitude=c_lng,
+        dtc_code=c_dtc,
         disconnection_status=cus.get("disconnection_status"),
         pending_amount=float(cus.get("pending_amount", 0.0)),
         due_date=cus.get("due_date"),

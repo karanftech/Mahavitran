@@ -97,7 +97,12 @@ export function matchCustomerFilters(
 ): boolean {
   // 1. DTC Code Filter
   if (filters.dtcCode && filters.dtcCode !== 'all') {
-    if (customer.dtc_code !== filters.dtcCode) return false;
+    const filterDtc = String(filters.dtcCode).trim().toUpperCase();
+    const custDtc = String(customer.dtc_code || '').trim().toUpperCase();
+    const meters = (customer as any).meters;
+    const meterDtcMatch = Array.isArray(meters) && meters.some((m: any) => String(m.dtc_code || '').trim().toUpperCase() === filterDtc);
+
+    if (custDtc !== filterDtc && !meterDtcMatch) return false;
   }
 
   // 2. Overdue Period Filter (Days overdue)

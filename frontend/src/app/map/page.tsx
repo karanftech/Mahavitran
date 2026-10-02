@@ -147,15 +147,24 @@ function MapPageContent() {
     );
   }, [filteredCustomers, temporarilyRemovedCustomerIds]);
 
-  // Auto-calculate multi-stop route connecting all pending meters only
+  const isDtcFiltered = !!(filters.dtcCode && filters.dtcCode !== 'all');
+
+  // Auto-calculate multi-stop route connecting pending meters for the selected DTC or when multi-navigating
   const lastMultiRouteOfficerCoordsRef = React.useRef<Coordinates | null>(null);
   const lastFilteredCustomerIdsRef = React.useRef<string>('');
 
   useEffect(() => {
-    if (pendingCustomersForRoute.length > 0) {
+    const shouldCalculate = (isDtcFiltered || isMultiNavigating) && pendingCustomersForRoute.length > 0;
+
+    if (shouldCalculate) {
       const effectiveCoords = officerCoords || { latitude: 21.1458, longitude: 79.0882 };
       const currentIdsKey = pendingCustomersForRoute.map((c) => c.customer_id).sort().join(',');
       const filtersChanged = currentIdsKey !== lastFilteredCustomerIdsRef.current;
+
+      // If customer IDs changed (e.g. DTC filter changed), immediately reset multiRoute so old routes are erased
+      if (filtersChanged) {
+        setMultiRoute(null);
+      }
 
       // Avoid recalculating multi-route on tiny GPS updates (< 500m movement) unless customer filters changed
       if (!filtersChanged && lastMultiRouteOfficerCoordsRef.current && officerCoords) {
@@ -177,13 +186,14 @@ function MapPageContent() {
           setMultiRoute(res);
         })
         .catch((err) => {
-          console.warn('Auto multi-route calculation error:', err);
+          console.warn('Auto multi-route calculation error for filtered DTC:', err);
         });
     } else {
+      // Clear route if no DTC is filtered and not multi-navigating
       lastFilteredCustomerIdsRef.current = '';
       setMultiRoute(null);
     }
-  }, [pendingCustomersForRoute, officerCoords]);
+  }, [isDtcFiltered, isMultiNavigating, pendingCustomersForRoute, officerCoords]);
 
   // Count aggregates for filters
   const counts = useMemo(() => {
@@ -384,13 +394,26 @@ function MapPageContent() {
     return navTargetCustomer ? [navTargetCustomer] : [];
   }, [navTargetCustomer]);
 
+  const handleFilterChange = React.useCallback((newFilters: MapFilterState) => {
+    if (newFilters.dtcCode !== filters.dtcCode || newFilters.status !== filters.status) {
+      setMultiRoute(null);
+      setSelectedCustomer(null);
+      if (isMultiNavigating) {
+        setIsMultiNavigating(false);
+        setCurrentStopIndex(0);
+        stopNavigation();
+      }
+    }
+    setFilters(newFilters);
+  }, [filters.dtcCode, filters.status, isMultiNavigating, stopNavigation]);
+
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Top Floating Map Search & Filter Bar (Matching screenshot) */}
       <div className="absolute top-4 left-4 right-4 z-30 max-w-xl mx-auto">
         <MapFilters
           filters={filters}
-          onFilterChange={setFilters}
+          onFilterChange={handleFilterChange}
           customerCounts={counts}
           selectedCustomer={selectedCustomer}
           onNavigateSelected={
@@ -414,7 +437,7 @@ function MapPageContent() {
           officerHeading={officerHeading}
           selectedCustomer={selectedCustomer}
           route={activeRoute}
-          multiRoute={isMultiNavigating ? multiRoute : null}
+          multiRoute={(isMultiNavigating || isDtcFiltered) ? multiRoute : null}
           activeStopIndex={currentStopIndex}
           navState={navStateObj}
           streetView={streetView}
