@@ -186,9 +186,12 @@ async def list_customers(
     if not customers_docs:
         return []
 
-    # Batch fetch meters
+    # Batch fetch meters with projection
     customer_ids = [cus.get("customer_id") for cus in customers_docs if cus.get("customer_id")]
-    all_meters_docs = await db.meters.find({"customer_id": {"$in": customer_ids}}).to_list(5000)
+    all_meters_docs = await db.meters.find(
+        {"customer_id": {"$in": customer_ids}},
+        {"meter_id": 1, "meter_number": 1, "customer_id": 1, "latitude": 1, "longitude": 1, "assigned_officer_id": 1, "uploaded_by_officer_id": 1}
+    ).to_list(5000)
 
     # Collect all officer IDs (from customers AND meters)
     all_officer_ids = set()
@@ -205,7 +208,10 @@ async def list_customers(
 
     officer_names_map = {}
     if all_officer_ids:
-        officers_docs = await db.officers.find({"officer_id": {"$in": list(all_officer_ids)}}).to_list(1000)
+        officers_docs = await db.officers.find(
+            {"officer_id": {"$in": list(all_officer_ids)}},
+            {"officer_id": 1, "full_name": 1}
+        ).to_list(1000)
         officer_names_map = {o.get("officer_id"): o.get("full_name") for o in officers_docs if o.get("officer_id")}
 
     meters_by_customer = defaultdict(list)

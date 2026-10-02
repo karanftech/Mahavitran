@@ -28,8 +28,18 @@ const nextConfig = {
         ],
       },
       {
-        // Apply strict no-cache only to actual pages and API routes
-        source: '/((?!_next/static).*)',
+        // Allow public static media and font assets to be cached
+        source: '/:all*(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        ],
+      },
+      {
+        // Apply strict no-cache only to dynamic pages and API routes
+        source: '/((?!_next/static|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf)).*)',
         headers: [
           {
             key: 'Cache-Control',

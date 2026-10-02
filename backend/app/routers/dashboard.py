@@ -56,14 +56,32 @@ async def get_officer_dashboard(
         if officer_id:
             today_pmt_match["officer_id"] = officer_id
 
+        # Build disconn_match
+        disconn_match = dict(cus_filter)
+        disconn_match["$or"] = [
+            {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
+            {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
+        ]
+        if officer_id:
+            disconn_match = {
+                "$and": [
+                    {"$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]},
+                    {"$or": [
+                        {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
+                        {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
+                    ]}
+                ]
+            }
 
-        # Run independent DB queries concurrently with officer filters
+        # Run ALL independent DB queries concurrently in parallel with officer filters
         (
             total_assigned,
             pending_agg,
             paid_count,
             total_payments_count,
             today_agg,
+            disconn_agg,
+            nearby_customers,
         ) = await asyncio.gather(
             # Total customer count for officer
             db.customers.count_documents(cus_filter),
@@ -89,8 +107,29 @@ async def get_officer_dashboard(
                     "count": {"$sum": 1}
                 }}
             ]).to_list(1),
+            # Aggregate disconnection status categories (TD, PD, BUR, DIS)
+            db.customers.aggregate([
+                {"$match": disconn_match},
+                {"$group": {
+                    "_id": {
+                        "$toUpper": {
+                            "$ifNull": ["$disconnection_status", "$status"]
+                        }
+                    },
+                    "total_amount": {"$sum": "$pending_amount"},
+                    "count": {"$sum": 1}
+                }}
+            ]).to_list(10),
+            # Nearby pending customers (optimized to top 10)
+            CustomerService.get_nearby_customers(
+                db=db,
+                latitude=latitude or 21.1458,
+                longitude=longitude or 79.0882,
+                radius_meters=5000.0,
+                officer_id=officer_id,
+                limit=10,
+            ),
         )
-
 
         # Extract aggregation results
         pending_result = pending_agg[0] if pending_agg else {}
@@ -106,45 +145,6 @@ async def get_officer_dashboard(
         todays_target = safe_float(officer_doc.get("target_collection_amount"), 25000.0) if officer_doc else 25000.0
         remaining_count = max(0, int(total_assigned) - today_payments_count)
         remaining_amt = max(0.0, todays_target - todays_collected_amt)
-
-        # Nearby pending customers (already optimised with batch queries)
-        nearby_customers = await CustomerService.get_nearby_customers(
-            db=db,
-            latitude=latitude or 21.1458,
-            longitude=longitude or 79.0882,
-            radius_meters=5000.0,
-            officer_id=officer_id
-        )
-
-        # Aggregate disconnection status categories (TD, PD, BUR, DIS)
-        disconn_match = dict(cus_filter)
-        disconn_match["$or"] = [
-            {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
-            {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
-        ]
-        if officer_id:
-            disconn_match = {
-                "$and": [
-                    {"$or": [{"assigned_officer_id": officer_id}, {"uploaded_by_officer_id": officer_id}]},
-                    {"$or": [
-                        {"disconnection_status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}},
-                        {"status": {"$in": ["TD", "PD", "BUR", "DIS", "td", "pd", "bur", "dis"]}}
-                    ]}
-                ]
-            }
-
-        disconn_agg = await db.customers.aggregate([
-            {"$match": disconn_match},
-            {"$group": {
-                "_id": {
-                    "$toUpper": {
-                        "$ifNull": ["$disconnection_status", "$status"]
-                    }
-                },
-                "total_amount": {"$sum": "$pending_amount"},
-                "count": {"$sum": 1}
-            }}
-        ]).to_list(10)
 
         status_map = {item["_id"]: item for item in disconn_agg if item.get("_id")}
 

@@ -15,7 +15,7 @@ import PaymentModal from '@/components/payments/PaymentModal';
 import ReceiptView from '@/components/payments/ReceiptView';
 
 export default function OfficerDashboard() {
-  const { coords } = useGeolocation();
+  const { coords, loading: geoLoading } = useGeolocation();
   const [metrics, setMetrics] = useState<OfficerDashboardMetrics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +33,19 @@ export default function OfficerDashboard() {
     return `${lat},${lng}`;
   }, [coords]);
 
-  const fetchDashboard = async (showFullLoader = false) => {
+  const hasFetched = React.useRef(false);
+  const isFetchingRef = React.useRef(false);
+
+  const fetchDashboard = async (showFullLoader = false, targetCoords = coords) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     if (showFullLoader) setLoading(true);
     setError(null);
     try {
       const response = await api.get<OfficerDashboardMetrics>('/api/dashboard/officer', {
         params: {
-          latitude: coords?.latitude || 21.1458,
-          longitude: coords?.longitude || 79.0882,
+          latitude: targetCoords?.latitude || 21.1458,
+          longitude: targetCoords?.longitude || 79.0882,
         },
       });
       setMetrics(response.data);
@@ -49,18 +54,28 @@ export default function OfficerDashboard() {
       setError(err?.response?.data?.detail || 'Failed to connect to backend server. Make sure backend service is running.');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
-  // Fetch on mount and silently update if GPS grid coordinate changes significantly
-  const hasFetched = React.useRef(false);
-
   useEffect(() => {
+    // If geolocation is still in its initial loading state, allow a brief 300ms window
+    // to obtain the actual GPS position before firing the initial API call.
+    if (geoLoading && !hasFetched.current) {
+      const timer = setTimeout(() => {
+        if (!hasFetched.current) {
+          hasFetched.current = true;
+          fetchDashboard(true, coords);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+
     const showLoader = !hasFetched.current;
-    fetchDashboard(showLoader);
     hasFetched.current = true;
+    fetchDashboard(showLoader, coords);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordKey]);
+  }, [coordKey, geoLoading]);
 
   if (loading) {
     return (
